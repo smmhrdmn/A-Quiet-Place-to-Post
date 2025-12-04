@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>nez updates</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#ff69b4">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="nez">
+    <meta name="description" content="A quiet place to post">
+    
+    <!-- Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- iOS Icons -->
+    <link rel="apple-touch-icon" href="icon-192.png">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@300;400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+    <header>
+        <nav>
+            <span class="site-title">✎♡❀</span>
+            <div class="status-container">
+                <span class="status-prefix">nez is</span>
+                <button id="status-toggle" class="status-link">
+                    <span id="status-word">offline</span>
+                </button>
+                <span id="status-dot" class="status-dot status-dot-offline"></span>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <!-- Auth Panel (hidden by default) -->
+        <section id="auth-panel" class="auth-panel hidden">
+            <div class="auth-form">
+                <input 
+                    type="email" 
+                    id="email-input" 
+                    placeholder="email" 
+                    autocomplete="email"
+                >
+                <input 
+                    type="password" 
+                    id="password-input" 
+                    placeholder="password" 
+                    autocomplete="current-password"
+                >
+                <button id="auth-submit">enter</button>
+            </div>
+        </section>
+
+        <!-- Write Panel (hidden until authenticated) -->
+        <section id="write-panel" class="write-panel hidden">
+            <textarea 
+                id="post-content" 
+                placeholder="write something..."
+                rows="4"
+            ></textarea>
+            <div class="write-actions">
+                <button id="post-submit">post</button>
+            </div>
+        </section>
+
+        <!-- Inbox Panel (hidden until authenticated) -->
+        <section id="inbox-panel" class="inbox-panel hidden">
+            <h2 class="inbox-title">inbox</h2>
+            
+            <!-- Playlist Settings (admin only) -->
+            <div class="playlist-settings">
+                <h3 class="playlist-settings-title">playlist settings</h3>
+                <select id="playlist-type-select" class="playlist-type-select">
+                    <option value="youtube">YouTube</option>
+                    <option value="spotify">Spotify</option>
+                    <option value="soundcloud">SoundCloud</option>
+                </select>
+                <input 
+                    type="text" 
+                    id="playlist-url-input" 
+                    placeholder="playlist url"
+                    class="playlist-url-input"
+                >
+                <button id="playlist-save" class="playlist-save-button">save playlist</button>
+            </div>
+            
+            <div id="inbox-container" class="inbox-container">
+                <!-- Suggestions will be rendered here -->
+            </div>
+            <div id="inbox-empty" class="inbox-empty hidden">
+                <p>no suggestions</p>
+            </div>
+        </section>
+
+        <!-- Posts Feed -->
+        <section id="feed" class="feed">
+            <div id="posts-container" class="posts-container">
+                <!-- Posts will be rendered here -->
+            </div>
+            <div id="loading" class="loading">
+                <span>...</span>
+            </div>
+            <div id="empty-state" class="empty-state hidden">
+                <p>nothing here yet</p>
+            </div>
+        </section>
+
+        <!-- Music Playlist (visible to all) -->
+        <section id="playlist-section" class="playlist-section hidden">
+            <h2 class="playlist-title">playlist</h2>
+            <div id="playlist-container" class="playlist-container">
+                <!-- Music embed will be inserted here -->
+            </div>
+        </section>
+
+        <!-- Suggest Panel (visible only when not authenticated) -->
+        <section id="suggest-panel" class="suggest-panel">
+            <textarea 
+                id="suggest-content" 
+                placeholder="suggest something..."
+                rows="3"
+            ></textarea>
+            <div class="suggest-actions">
+                <button id="random-word" class="random-word-button">random word</button>
+                <button id="suggest-submit">suggest</button>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <span class="footer-decoration">✎♡❀</span>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
+
