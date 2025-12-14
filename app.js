@@ -2148,19 +2148,22 @@ async function handleCreatePost() {
         // Restore scroll position
         const scrollY = elements.writePanel._savedScrollY || 0;
         elements.writePanel.classList.remove('write-panel-fullscreen');
-        document.body.style.overflow = '';
-        document.body.style.position = '';
-        document.body.style.width = '';
-        document.body.style.top = '';
-        // Remove touchmove prevention
+        // Remove touchmove prevention first
         if (elements.writePanel._preventScrollHandler) {
             document.removeEventListener('touchmove', elements.writePanel._preventScrollHandler);
             elements.writePanel._preventScrollHandler = null;
         }
-        // Restore scroll position after DOM updates
+        // Clear body styles using removeProperty to ensure they're fully removed
+        document.body.style.removeProperty('overflow');
+        document.body.style.removeProperty('position');
+        document.body.style.removeProperty('width');
+        document.body.style.removeProperty('top');
+        // Restore scroll position after DOM updates - use double RAF for mobile reliability
         requestAnimationFrame(() => {
-            window.scrollTo(0, scrollY);
-            elements.writePanel._savedScrollY = null;
+            requestAnimationFrame(() => {
+                window.scrollTo(0, scrollY);
+                elements.writePanel._savedScrollY = null;
+            });
         });
     }
     
@@ -2285,19 +2288,22 @@ async function handleCreateSuggestion() {
         // Restore scroll position
         const scrollY = elements.suggestPanel._savedScrollY || 0;
         elements.suggestPanel.classList.remove('suggest-panel-fullscreen');
-        document.body.style.overflow = '';
-        document.body.style.position = '';
-        document.body.style.width = '';
-        document.body.style.top = '';
-        // Remove touchmove prevention
+        // Remove touchmove prevention first
         if (elements.suggestPanel._preventScrollHandler) {
             document.removeEventListener('touchmove', elements.suggestPanel._preventScrollHandler);
             elements.suggestPanel._preventScrollHandler = null;
         }
-        // Restore scroll position after DOM updates
+        // Clear body styles using removeProperty to ensure they're fully removed
+        document.body.style.removeProperty('overflow');
+        document.body.style.removeProperty('position');
+        document.body.style.removeProperty('width');
+        document.body.style.removeProperty('top');
+        // Restore scroll position after DOM updates - use double RAF for mobile reliability
         requestAnimationFrame(() => {
-            window.scrollTo(0, scrollY);
-            elements.suggestPanel._savedScrollY = null;
+            requestAnimationFrame(() => {
+                window.scrollTo(0, scrollY);
+                elements.suggestPanel._savedScrollY = null;
+            });
         });
     }
     
@@ -2704,21 +2710,24 @@ function setupEventListeners() {
                         }
                         // Restore scroll position
                         const scrollY = elements.writePanel._savedScrollY || 0;
-                        document.body.style.overflow = '';
-                        document.body.style.position = '';
-                        document.body.style.width = '';
-                        document.body.style.top = '';
-                        elements.writePanel.style.height = '';
-                        elements.writePanel.style.top = '';
-                        // Remove touchmove prevention
+                        // Remove touchmove prevention first
                         if (elements.writePanel._preventScrollHandler) {
                             document.removeEventListener('touchmove', elements.writePanel._preventScrollHandler);
                             elements.writePanel._preventScrollHandler = null;
                         }
-                        // Restore scroll position after DOM updates
+                        // Clear body styles using removeProperty to ensure they're fully removed
+                        document.body.style.removeProperty('overflow');
+                        document.body.style.removeProperty('position');
+                        document.body.style.removeProperty('width');
+                        document.body.style.removeProperty('top');
+                        elements.writePanel.style.removeProperty('height');
+                        elements.writePanel.style.removeProperty('top');
+                        // Restore scroll position after DOM updates - use double RAF for mobile reliability
                         requestAnimationFrame(() => {
-                            window.scrollTo(0, scrollY);
-                            elements.writePanel._savedScrollY = null;
+                            requestAnimationFrame(() => {
+                                window.scrollTo(0, scrollY);
+                                elements.writePanel._savedScrollY = null;
+                            });
                         });
                         // Restore sticky class when exiting fullscreen
                         if (isAuthenticated) {
@@ -2771,21 +2780,24 @@ function setupEventListeners() {
                     // Restore scroll position
                     const scrollY = elements.writePanel._savedScrollY || 0;
                     elements.writePanel.classList.remove('write-panel-fullscreen');
-                    document.body.style.overflow = '';
-                    document.body.style.position = '';
-                    document.body.style.width = '';
-                    document.body.style.top = '';
-                    elements.writePanel.style.height = '';
-                    elements.writePanel.style.top = '';
-                    // Remove touchmove prevention
+                    // Remove touchmove prevention first
                     if (elements.writePanel._preventScrollHandler) {
                         document.removeEventListener('touchmove', elements.writePanel._preventScrollHandler);
                         elements.writePanel._preventScrollHandler = null;
                     }
-                    // Restore scroll position after DOM updates
+                    // Clear body styles using removeProperty to ensure they're fully removed
+                    document.body.style.removeProperty('overflow');
+                    document.body.style.removeProperty('position');
+                    document.body.style.removeProperty('width');
+                    document.body.style.removeProperty('top');
+                    elements.writePanel.style.removeProperty('height');
+                    elements.writePanel.style.removeProperty('top');
+                    // Restore scroll position after DOM updates - use double RAF for mobile reliability
                     requestAnimationFrame(() => {
-                        window.scrollTo(0, scrollY);
-                        elements.writePanel._savedScrollY = null;
+                        requestAnimationFrame(() => {
+                            window.scrollTo(0, scrollY);
+                            elements.writePanel._savedScrollY = null;
+                        });
                     });
                 }
             }, 200);
@@ -2912,25 +2924,24 @@ function setupEventListeners() {
             elements.suggestPanel.classList.remove('suggest-panel-fullscreen');
             // Restore sticky class
             elements.suggestPanel.classList.add('suggest-panel-sticky');
-            document.body.style.overflow = '';
-            document.body.style.position = '';
-            document.body.style.width = '';
-            document.body.style.top = '';
-            if (elements.suggestPanel.style.height) {
-                elements.suggestPanel.style.height = '';
-            }
-            if (elements.suggestPanel.style.top) {
-                elements.suggestPanel.style.top = '';
-            }
-            // Remove touchmove prevention
+            // Remove touchmove prevention first
             if (elements.suggestPanel._preventScrollHandler) {
                 document.removeEventListener('touchmove', elements.suggestPanel._preventScrollHandler);
                 elements.suggestPanel._preventScrollHandler = null;
             }
-            // Restore scroll position after DOM updates
+            // Clear body styles using removeProperty to ensure they're fully removed
+            document.body.style.removeProperty('overflow');
+            document.body.style.removeProperty('position');
+            document.body.style.removeProperty('width');
+            document.body.style.removeProperty('top');
+            elements.suggestPanel.style.removeProperty('height');
+            elements.suggestPanel.style.removeProperty('top');
+            // Restore scroll position after DOM updates - use double RAF for mobile reliability
             requestAnimationFrame(() => {
-                window.scrollTo(0, scrollY);
-                elements.suggestPanel._savedScrollY = null;
+                requestAnimationFrame(() => {
+                    window.scrollTo(0, scrollY);
+                    elements.suggestPanel._savedScrollY = null;
+                });
             });
             // Clear input text when closing
             elements.suggestContent.value = '';
@@ -3012,21 +3023,24 @@ function setupEventListeners() {
                         }
                         // Restore scroll position
                         const scrollY = elements.suggestPanel._savedScrollY || 0;
-                        document.body.style.overflow = '';
-                        document.body.style.position = '';
-                        document.body.style.width = '';
-                        document.body.style.top = '';
-                        elements.suggestPanel.style.height = '';
-                        elements.suggestPanel.style.top = '';
-                        // Remove touchmove prevention
+                        // Remove touchmove prevention first
                         if (elements.suggestPanel._preventScrollHandler) {
                             document.removeEventListener('touchmove', elements.suggestPanel._preventScrollHandler);
                             elements.suggestPanel._preventScrollHandler = null;
                         }
-                        // Restore scroll position after DOM updates
+                        // Clear body styles using removeProperty to ensure they're fully removed
+                        document.body.style.removeProperty('overflow');
+                        document.body.style.removeProperty('position');
+                        document.body.style.removeProperty('width');
+                        document.body.style.removeProperty('top');
+                        elements.suggestPanel.style.removeProperty('height');
+                        elements.suggestPanel.style.removeProperty('top');
+                        // Restore scroll position after DOM updates - use double RAF for mobile reliability
                         requestAnimationFrame(() => {
-                            window.scrollTo(0, scrollY);
-                            elements.suggestPanel._savedScrollY = null;
+                            requestAnimationFrame(() => {
+                                window.scrollTo(0, scrollY);
+                                elements.suggestPanel._savedScrollY = null;
+                            });
                         });
                         heightUpdateHandler = null;
                         observer.disconnect();
@@ -3075,21 +3089,24 @@ function setupEventListeners() {
                     // Restore scroll position
                     const scrollY = elements.suggestPanel._savedScrollY || 0;
                     elements.suggestPanel.classList.remove('suggest-panel-fullscreen');
-                    document.body.style.overflow = '';
-                    document.body.style.position = '';
-                    document.body.style.width = '';
-                    document.body.style.top = '';
-                    elements.suggestPanel.style.height = '';
-                    elements.suggestPanel.style.top = '';
-                    // Remove touchmove prevention
+                    // Remove touchmove prevention first
                     if (elements.suggestPanel._preventScrollHandler) {
                         document.removeEventListener('touchmove', elements.suggestPanel._preventScrollHandler);
                         elements.suggestPanel._preventScrollHandler = null;
                     }
-                    // Restore scroll position after DOM updates
+                    // Clear body styles using removeProperty to ensure they're fully removed
+                    document.body.style.removeProperty('overflow');
+                    document.body.style.removeProperty('position');
+                    document.body.style.removeProperty('width');
+                    document.body.style.removeProperty('top');
+                    elements.suggestPanel.style.removeProperty('height');
+                    elements.suggestPanel.style.removeProperty('top');
+                    // Restore scroll position after DOM updates - use double RAF for mobile reliability
                     requestAnimationFrame(() => {
-                        window.scrollTo(0, scrollY);
-                        elements.suggestPanel._savedScrollY = null;
+                        requestAnimationFrame(() => {
+                            window.scrollTo(0, scrollY);
+                            elements.suggestPanel._savedScrollY = null;
+                        });
                     });
                 }
             }, 200);
