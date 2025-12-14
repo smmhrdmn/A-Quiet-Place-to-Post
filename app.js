@@ -79,7 +79,8 @@ const elements = {
     letterboxdFetch: document.getElementById('letterboxd-fetch'),
     letterboxdReviewsContainer: document.getElementById('letterboxd-reviews-container'),
     letterboxdReviewsList: document.getElementById('letterboxd-reviews-list'),
-    letterboxdSaveSelection: document.getElementById('letterboxd-save-selection')
+    letterboxdSaveSelection: document.getElementById('letterboxd-save-selection'),
+    fullscreenOverlay: document.getElementById('fullscreen-overlay')
 };
 
 // ============================================
@@ -2151,6 +2152,7 @@ async function handleCreatePost() {
         document.documentElement.classList.remove('fullscreen-open');
         document.body.classList.remove('fullscreen-open');
         document.body.style.top = '';
+        if (elements.fullscreenOverlay) elements.fullscreenOverlay.classList.remove('active');
         window.scrollTo(0, scrollY);
         elements.writePanel._savedScrollY = null;
     }
@@ -2279,6 +2281,7 @@ async function handleCreateSuggestion() {
         document.documentElement.classList.remove('fullscreen-open');
         document.body.classList.remove('fullscreen-open');
         document.body.style.top = '';
+        if (elements.fullscreenOverlay) elements.fullscreenOverlay.classList.remove('active');
         window.scrollTo(0, scrollY);
         elements.suggestPanel._savedScrollY = null;
     }
@@ -2600,6 +2603,7 @@ function setupEventListeners() {
             document.documentElement.classList.remove('fullscreen-open');
             document.body.classList.remove('fullscreen-open');
             document.body.style.top = '';
+            if (elements.fullscreenOverlay) elements.fullscreenOverlay.classList.remove('active');
             elements.writePanel.style.removeProperty('height');
             elements.writePanel.style.removeProperty('top');
             window.scrollTo(0, scrollY);
@@ -2632,6 +2636,7 @@ function setupEventListeners() {
                 document.documentElement.classList.add('fullscreen-open');
                 document.body.classList.add('fullscreen-open');
                 document.body.style.top = `-${scrollY}px`;
+                if (elements.fullscreenOverlay) elements.fullscreenOverlay.classList.add('active');
                 
                 // Use visual viewport height to account for keyboard
                 const updateHeight = () => {
@@ -2676,6 +2681,7 @@ function setupEventListeners() {
                         document.documentElement.classList.remove('fullscreen-open');
                         document.body.classList.remove('fullscreen-open');
                         document.body.style.top = '';
+                        if (elements.fullscreenOverlay) elements.fullscreenOverlay.classList.remove('active');
                         elements.writePanel.style.removeProperty('height');
                         elements.writePanel.style.removeProperty('top');
                         // Restore scroll position
@@ -2736,6 +2742,7 @@ function setupEventListeners() {
                     document.documentElement.classList.remove('fullscreen-open');
                     document.body.classList.remove('fullscreen-open');
                     document.body.style.top = '';
+                    if (elements.fullscreenOverlay) elements.fullscreenOverlay.classList.remove('active');
                     elements.writePanel.style.removeProperty('height');
                     elements.writePanel.style.removeProperty('top');
                     // Restore scroll position
@@ -2757,6 +2764,7 @@ function setupEventListeners() {
                         document.documentElement.classList.add('fullscreen-open');
                         document.body.classList.add('fullscreen-open');
                         document.body.style.top = `-${scrollY}px`;
+                        if (elements.fullscreenOverlay) elements.fullscreenOverlay.classList.add('active');
                     
                     // Use visual viewport height to account for keyboard
                     const updateHeight = () => {
@@ -2857,6 +2865,7 @@ function setupEventListeners() {
             document.documentElement.classList.remove('fullscreen-open');
             document.body.classList.remove('fullscreen-open');
             document.body.style.top = '';
+            if (elements.fullscreenOverlay) elements.fullscreenOverlay.classList.remove('active');
             elements.suggestPanel.style.removeProperty('height');
             elements.suggestPanel.style.removeProperty('top');
             window.scrollTo(0, scrollY);
@@ -2889,6 +2898,7 @@ function setupEventListeners() {
                 document.documentElement.classList.add('fullscreen-open');
                 document.body.classList.add('fullscreen-open');
                 document.body.style.top = `-${scrollY}px`;
+                if (elements.fullscreenOverlay) elements.fullscreenOverlay.classList.add('active');
                 
                 // Use visual viewport height to account for keyboard
                 const updateHeight = () => {
@@ -2933,6 +2943,7 @@ function setupEventListeners() {
                         document.documentElement.classList.remove('fullscreen-open');
                         document.body.classList.remove('fullscreen-open');
                         document.body.style.top = '';
+                        if (elements.fullscreenOverlay) elements.fullscreenOverlay.classList.remove('active');
                         elements.suggestPanel.style.removeProperty('height');
                         elements.suggestPanel.style.removeProperty('top');
                         window.scrollTo(0, scrollY);
@@ -2988,6 +2999,7 @@ function setupEventListeners() {
                     document.documentElement.classList.remove('fullscreen-open');
                     document.body.classList.remove('fullscreen-open');
                     document.body.style.top = '';
+                    if (elements.fullscreenOverlay) elements.fullscreenOverlay.classList.remove('active');
                     elements.suggestPanel.style.removeProperty('height');
                     elements.suggestPanel.style.removeProperty('top');
                     window.scrollTo(0, scrollY);
@@ -3020,6 +3032,7 @@ function setupEventListeners() {
                 document.documentElement.classList.add('fullscreen-open');
                 document.body.classList.add('fullscreen-open');
                 document.body.style.top = `-${scrollY}px`;
+                if (elements.fullscreenOverlay) elements.fullscreenOverlay.classList.add('active');
                 
                 // Use visual viewport height to account for keyboard
                 const updateHeight = () => {
