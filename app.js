@@ -2595,30 +2595,60 @@ function setupEventListeners() {
     
     // Fullscreen panel on mobile when input is focused
     if (elements.postContent && elements.writePanel) {
+        let heightUpdateHandler = null;
+        
         const enterFullscreen = () => {
             if (window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
                 elements.writePanel.classList.add('write-panel-fullscreen');
                 // Prevent background scrolling
                 document.body.style.overflow = 'hidden';
-                // Use visual viewport height if available (accounts for keyboard)
+                
+                // Use visual viewport height to account for keyboard
+                const updateHeight = () => {
+                    if (elements.writePanel.classList.contains('write-panel-fullscreen')) {
+                        if (window.visualViewport) {
+                            // Use visual viewport height (space above keyboard)
+                            // Account for safe area at top
+                            const safeAreaTop = parseInt(getComputedStyle(document.documentElement).getPropertyValue('env(safe-area-inset-top)') || '0', 10) || 0;
+                            elements.writePanel.style.height = `${window.visualViewport.height + safeAreaTop}px`;
+                            elements.writePanel.style.top = `${window.visualViewport.offsetTop - safeAreaTop}px`;
+                        } else {
+                            // Fallback to window inner height
+                            elements.writePanel.style.height = `${window.innerHeight}px`;
+                            elements.writePanel.style.top = '0px';
+                        }
+                    }
+                };
+                
+                updateHeight();
+                
+                // Listen for viewport changes (keyboard appearing/disappearing)
                 if (window.visualViewport) {
-                    const updateHeight = () => {
-                        if (elements.writePanel.classList.contains('write-panel-fullscreen')) {
-                            elements.writePanel.style.height = `${window.visualViewport.height}px`;
-                        }
-                    };
-                    updateHeight();
-                    window.visualViewport.addEventListener('resize', updateHeight);
-                    // Clean up listener when panel exits fullscreen
-                    const observer = new MutationObserver(() => {
-                        if (!elements.writePanel.classList.contains('write-panel-fullscreen')) {
-                            window.visualViewport.removeEventListener('resize', updateHeight);
-                            document.body.style.overflow = '';
-                            observer.disconnect();
-                        }
-                    });
-                    observer.observe(elements.writePanel, { attributes: true, attributeFilter: ['class'] });
+                    heightUpdateHandler = updateHeight;
+                    window.visualViewport.addEventListener('resize', heightUpdateHandler);
+                    window.visualViewport.addEventListener('scroll', heightUpdateHandler);
+                } else {
+                    window.addEventListener('resize', updateHeight);
                 }
+                
+                // Clean up listener when panel exits fullscreen
+                const observer = new MutationObserver(() => {
+                    if (!elements.writePanel.classList.contains('write-panel-fullscreen')) {
+                        if (window.visualViewport && heightUpdateHandler) {
+                            window.visualViewport.removeEventListener('resize', heightUpdateHandler);
+                            window.visualViewport.removeEventListener('scroll', heightUpdateHandler);
+                        } else {
+                            window.removeEventListener('resize', updateHeight);
+                        }
+                        document.body.style.overflow = '';
+                        elements.writePanel.style.height = '';
+                        elements.writePanel.style.top = '';
+                        heightUpdateHandler = null;
+                        observer.disconnect();
+                    }
+                });
+                observer.observe(elements.writePanel, { attributes: true, attributeFilter: ['class'] });
+                
                 // Scroll to top to ensure panel is visible
                 window.scrollTo(0, 0);
             }
@@ -2633,9 +2663,8 @@ function setupEventListeners() {
                 if (document.activeElement !== elements.postTag) {
                     elements.writePanel.classList.remove('write-panel-fullscreen');
                     document.body.style.overflow = '';
-                    if (elements.writePanel.style.height) {
-                        elements.writePanel.style.height = '';
-                    }
+                    elements.writePanel.style.height = '';
+                    elements.writePanel.style.top = '';
                 }
             }, 200);
         });
@@ -2648,16 +2677,34 @@ function setupEventListeners() {
                     elements.writePanel.classList.add('write-panel-fullscreen');
                     // Prevent background scrolling
                     document.body.style.overflow = 'hidden';
-                    // Use visual viewport height if available (accounts for keyboard)
-                    if (window.visualViewport) {
-                        const updateHeight = () => {
-                            if (elements.writePanel.classList.contains('write-panel-fullscreen')) {
-                                elements.writePanel.style.height = `${window.visualViewport.height}px`;
+                    
+                    // Use visual viewport height to account for keyboard
+                    const updateHeight = () => {
+                        if (elements.writePanel.classList.contains('write-panel-fullscreen')) {
+                            if (window.visualViewport) {
+                                // Use visual viewport height (space above keyboard)
+                                // Account for safe area at top
+                                const safeAreaTop = parseInt(getComputedStyle(document.documentElement).getPropertyValue('env(safe-area-inset-top)') || '0', 10) || 0;
+                                elements.writePanel.style.height = `${window.visualViewport.height + safeAreaTop}px`;
+                                elements.writePanel.style.top = `${window.visualViewport.offsetTop - safeAreaTop}px`;
+                            } else {
+                                // Fallback to window inner height
+                                elements.writePanel.style.height = `${window.innerHeight}px`;
+                                elements.writePanel.style.top = '0px';
                             }
-                        };
-                        updateHeight();
+                        }
+                    };
+                    
+                    updateHeight();
+                    
+                    // Listen for viewport changes (keyboard appearing/disappearing)
+                    if (window.visualViewport) {
                         window.visualViewport.addEventListener('resize', updateHeight);
+                        window.visualViewport.addEventListener('scroll', updateHeight);
+                    } else {
+                        window.addEventListener('resize', updateHeight);
                     }
+                    
                     // Scroll to top to ensure panel is visible
                     window.scrollTo(0, 0);
                 }
@@ -2673,9 +2720,8 @@ function setupEventListeners() {
                 if (document.activeElement !== elements.postContent) {
                     elements.writePanel.classList.remove('write-panel-fullscreen');
                     document.body.style.overflow = '';
-                    if (elements.writePanel.style.height) {
-                        elements.writePanel.style.height = '';
-                    }
+                    elements.writePanel.style.height = '';
+                    elements.writePanel.style.top = '';
                 }
             }, 200);
         });
@@ -2728,30 +2774,60 @@ function setupEventListeners() {
     
     // Fullscreen panel on mobile when input is focused
     if (elements.suggestContent && elements.suggestPanel) {
+        let heightUpdateHandler = null;
+        
         const enterFullscreen = () => {
             if (window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
                 elements.suggestPanel.classList.add('suggest-panel-fullscreen');
                 // Prevent background scrolling
                 document.body.style.overflow = 'hidden';
-                // Use visual viewport height if available (accounts for keyboard)
+                
+                // Use visual viewport height to account for keyboard
+                const updateHeight = () => {
+                    if (elements.suggestPanel.classList.contains('suggest-panel-fullscreen')) {
+                        if (window.visualViewport) {
+                            // Use visual viewport height (space above keyboard)
+                            // Account for safe area at top
+                            const safeAreaTop = parseInt(getComputedStyle(document.documentElement).getPropertyValue('env(safe-area-inset-top)') || '0', 10) || 0;
+                            elements.suggestPanel.style.height = `${window.visualViewport.height + safeAreaTop}px`;
+                            elements.suggestPanel.style.top = `${window.visualViewport.offsetTop - safeAreaTop}px`;
+                        } else {
+                            // Fallback to window inner height
+                            elements.suggestPanel.style.height = `${window.innerHeight}px`;
+                            elements.suggestPanel.style.top = '0px';
+                        }
+                    }
+                };
+                
+                updateHeight();
+                
+                // Listen for viewport changes (keyboard appearing/disappearing)
                 if (window.visualViewport) {
-                    const updateHeight = () => {
-                        if (elements.suggestPanel.classList.contains('suggest-panel-fullscreen')) {
-                            elements.suggestPanel.style.height = `${window.visualViewport.height}px`;
-                        }
-                    };
-                    updateHeight();
-                    window.visualViewport.addEventListener('resize', updateHeight);
-                    // Clean up listener when panel exits fullscreen
-                    const observer = new MutationObserver(() => {
-                        if (!elements.suggestPanel.classList.contains('suggest-panel-fullscreen')) {
-                            window.visualViewport.removeEventListener('resize', updateHeight);
-                            document.body.style.overflow = '';
-                            observer.disconnect();
-                        }
-                    });
-                    observer.observe(elements.suggestPanel, { attributes: true, attributeFilter: ['class'] });
+                    heightUpdateHandler = updateHeight;
+                    window.visualViewport.addEventListener('resize', heightUpdateHandler);
+                    window.visualViewport.addEventListener('scroll', heightUpdateHandler);
+                } else {
+                    window.addEventListener('resize', updateHeight);
                 }
+                
+                // Clean up listener when panel exits fullscreen
+                const observer = new MutationObserver(() => {
+                    if (!elements.suggestPanel.classList.contains('suggest-panel-fullscreen')) {
+                        if (window.visualViewport && heightUpdateHandler) {
+                            window.visualViewport.removeEventListener('resize', heightUpdateHandler);
+                            window.visualViewport.removeEventListener('scroll', heightUpdateHandler);
+                        } else {
+                            window.removeEventListener('resize', updateHeight);
+                        }
+                        document.body.style.overflow = '';
+                        elements.suggestPanel.style.height = '';
+                        elements.suggestPanel.style.top = '';
+                        heightUpdateHandler = null;
+                        observer.disconnect();
+                    }
+                });
+                observer.observe(elements.suggestPanel, { attributes: true, attributeFilter: ['class'] });
+                
                 // Scroll to top to ensure panel is visible
                 window.scrollTo(0, 0);
             }
@@ -2771,9 +2847,8 @@ function setupEventListeners() {
                 if (!isWithinPanel && elements.suggestPanel.classList.contains('suggest-panel-fullscreen')) {
                     elements.suggestPanel.classList.remove('suggest-panel-fullscreen');
                     document.body.style.overflow = '';
-                    if (elements.suggestPanel.style.height) {
-                        elements.suggestPanel.style.height = '';
-                    }
+                    elements.suggestPanel.style.height = '';
+                    elements.suggestPanel.style.top = '';
                 }
             }, 200);
         });
@@ -2793,25 +2868,31 @@ function setupEventListeners() {
                 elements.suggestPanel.classList.add('suggest-panel-fullscreen');
                 // Prevent background scrolling
                 document.body.style.overflow = 'hidden';
-                // Use visual viewport height if available (accounts for keyboard)
-                if (window.visualViewport) {
-                    const updateHeight = () => {
-                        if (elements.suggestPanel.classList.contains('suggest-panel-fullscreen')) {
+                
+                // Use visual viewport height to account for keyboard
+                const updateHeight = () => {
+                    if (elements.suggestPanel.classList.contains('suggest-panel-fullscreen')) {
+                        if (window.visualViewport) {
+                            // Use visual viewport height (space above keyboard)
                             elements.suggestPanel.style.height = `${window.visualViewport.height}px`;
+                            elements.suggestPanel.style.top = `${window.visualViewport.offsetTop}px`;
+                        } else {
+                            // Fallback to window inner height
+                            elements.suggestPanel.style.height = `${window.innerHeight}px`;
                         }
-                    };
-                    updateHeight();
+                    }
+                };
+                
+                updateHeight();
+                
+                // Listen for viewport changes (keyboard appearing/disappearing)
+                if (window.visualViewport) {
                     window.visualViewport.addEventListener('resize', updateHeight);
-                    // Clean up listener when panel exits fullscreen
-                    const observer = new MutationObserver(() => {
-                        if (!elements.suggestPanel.classList.contains('suggest-panel-fullscreen')) {
-                            window.visualViewport.removeEventListener('resize', updateHeight);
-                            document.body.style.overflow = '';
-                            observer.disconnect();
-                        }
-                    });
-                    observer.observe(elements.suggestPanel, { attributes: true, attributeFilter: ['class'] });
+                    window.visualViewport.addEventListener('scroll', updateHeight);
+                } else {
+                    window.addEventListener('resize', updateHeight);
                 }
+                
                 // Scroll to top to ensure panel is visible
                 window.scrollTo(0, 0);
             }

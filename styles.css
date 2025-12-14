@@ -32,6 +32,20 @@ html {
     -moz-osx-font-smoothing: grayscale;
     scrollbar-gutter: stable;
     overflow-y: scroll;
+    background: var(--bg);
+}
+
+/* Ensure safe area is transparent and content can scroll behind it */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: env(safe-area-inset-top, 0);
+    background: transparent;
+    z-index: -1;
+    pointer-events: none;
 }
 
 body {
@@ -409,19 +423,16 @@ nav {
 .write-panel-fullscreen,
 .write-panel.write-panel-fullscreen {
     position: fixed !important;
-    top: 0 !important;
     left: 0 !important;
     right: 0 !important;
-    bottom: 0 !important;
     transform: none !important;
     width: 100% !important;
     max-width: 100% !important;
-    height: 100vh !important;
-    height: 100dvh !important; /* Dynamic viewport height for mobile */
-    max-height: 100vh !important;
-    max-height: 100dvh !important;
     margin: 0 !important;
-    padding: calc(1rem + env(safe-area-inset-top)) 1rem calc(1rem + env(safe-area-inset-bottom)) 1rem !important;
+    padding-top: calc(1rem + env(safe-area-inset-top, 0)) !important;
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0)) !important;
     border: none !important;
     border-top: 1px solid var(--rule) !important;
     background: rgba(255, 245, 250, 0.95) !important;
@@ -430,6 +441,20 @@ nav {
     display: flex !important;
     flex-direction: column !important;
     box-sizing: border-box !important;
+    /* Height and top will be set dynamically by JavaScript based on visual viewport */
+}
+
+/* Extend pink background into safe area */
+.write-panel-fullscreen::before,
+.write-panel.write-panel-fullscreen::before {
+    content: '';
+    position: absolute;
+    top: calc(-1 * env(safe-area-inset-top, 0));
+    left: 0;
+    right: 0;
+    height: env(safe-area-inset-top, 0);
+    background: rgba(255, 245, 250, 0.95);
+    z-index: -1;
 }
 
 .write-panel textarea {
@@ -609,19 +634,16 @@ nav {
 .suggest-panel-fullscreen,
 .suggest-panel.suggest-panel-fullscreen {
     position: fixed !important;
-    top: 0 !important;
     left: 0 !important;
     right: 0 !important;
-    bottom: 0 !important;
     transform: none !important;
     width: 100% !important;
     max-width: 100% !important;
-    height: 100vh !important;
-    height: 100dvh !important; /* Dynamic viewport height for mobile */
-    max-height: 100vh !important;
-    max-height: 100dvh !important;
     margin: 0 !important;
-    padding: calc(1rem + env(safe-area-inset-top)) 1rem calc(1rem + env(safe-area-inset-bottom)) 1rem !important;
+    padding-top: calc(1rem + env(safe-area-inset-top, 0)) !important;
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0)) !important;
     border: none !important;
     border-top: 1px solid var(--rule) !important;
     background: rgba(255, 245, 250, 0.95) !important;
@@ -630,6 +652,20 @@ nav {
     display: flex !important;
     flex-direction: column !important;
     box-sizing: border-box !important;
+    /* Height and top will be set dynamically by JavaScript based on visual viewport */
+}
+
+/* Extend pink background into safe area */
+.suggest-panel-fullscreen::before,
+.suggest-panel.suggest-panel-fullscreen::before {
+    content: '';
+    position: absolute;
+    top: calc(-1 * env(safe-area-inset-top, 0));
+    left: 0;
+    right: 0;
+    height: env(safe-area-inset-top, 0);
+    background: rgba(255, 245, 250, 0.95);
+    z-index: -1;
 }
 
 .suggest-panel textarea {
