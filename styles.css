@@ -471,7 +471,7 @@ nav {
     z-index: 99999 !important;
     overscroll-behavior: contain !important;
     -webkit-overflow-scrolling: touch !important;
-    touch-action: none !important;
+    touch-action: manipulation !important;
     z-index: 1000 !important;
     box-shadow: none !important;
     display: flex !important;
@@ -691,7 +691,7 @@ nav {
     z-index: 99999 !important;
     overscroll-behavior: contain !important;
     -webkit-overflow-scrolling: touch !important;
-    touch-action: none !important;
+    touch-action: manipulation !important;
     z-index: 1000 !important;
     box-shadow: none !important;
     display: flex !important;

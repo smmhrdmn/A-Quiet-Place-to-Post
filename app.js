@@ -2738,6 +2738,10 @@ function setupEventListeners() {
                     // Restore scroll position
                     const scrollY = elements.writePanel._savedScrollY || 0;
                     elements.writePanel.classList.remove('write-panel-fullscreen');
+                    // Restore sticky class
+                    if (isAuthenticated) {
+                        elements.writePanel.classList.add('write-panel-sticky');
+                    }
                     // Remove scroll prevention class
                     document.documentElement.classList.remove('fullscreen-open');
                     document.body.classList.remove('fullscreen-open');
@@ -2939,6 +2943,8 @@ function setupEventListeners() {
                         }
                         // Restore scroll position
                         const scrollY = elements.suggestPanel._savedScrollY || 0;
+                        // Restore sticky class
+                        elements.suggestPanel.classList.add('suggest-panel-sticky');
                         // Remove scroll prevention class
                         document.documentElement.classList.remove('fullscreen-open');
                         document.body.classList.remove('fullscreen-open');
@@ -2995,6 +3001,7 @@ function setupEventListeners() {
                     // Restore scroll position
                     const scrollY = elements.suggestPanel._savedScrollY || 0;
                     elements.suggestPanel.classList.remove('suggest-panel-fullscreen');
+                    elements.suggestPanel.classList.add('suggest-panel-sticky');
                     // Remove scroll prevention class
                     document.documentElement.classList.remove('fullscreen-open');
                     document.body.classList.remove('fullscreen-open');
