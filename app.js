@@ -154,18 +154,7 @@ function formatReviewContent(review) {
     if (review.film_year) {
         content += ` (${review.film_year})`;
     }
-    if (review.rating) {
-        // Convert numeric ratings (including decimals like "5.0") to stars
-        let ratingDisplay = review.rating;
-        const numericMatch = ratingDisplay.match(/^(\d+(?:\.\d+)?)/);
-        if (numericMatch) {
-            const numRating = Math.round(parseFloat(numericMatch[1]));
-            if (numRating >= 1 && numRating <= 5) {
-                ratingDisplay = '★'.repeat(numRating) + '☆'.repeat(5 - numRating);
-            }
-        }
-        content += ` - ${ratingDisplay}`;
-    }
+    // Rating is now displayed in the footer, not in the content
     if (review.review_text) {
         let reviewText = review.review_text;
         
@@ -1576,18 +1565,50 @@ function renderPosts() {
         const isReview = post.type === 'review';
         const postClass = isReview ? 'post post-review' : 'post';
         
+        // Extract rating for reviews and format it like likes
+        let ratingStars = '';
+        if (isReview && post.review_data && post.review_data.rating) {
+            let ratingDisplay = post.review_data.rating;
+            // Convert numeric ratings (including decimals like "5.0") to stars
+            const numericMatch = ratingDisplay.match(/^(\d+(?:\.\d+)?)/);
+            if (numericMatch) {
+                const numRating = Math.round(parseFloat(numericMatch[1]));
+                if (numRating >= 1 && numRating <= 5) {
+                    ratingDisplay = '★'.repeat(numRating) + '☆'.repeat(5 - numRating);
+                }
+            }
+            ratingStars = ratingDisplay;
+        }
+        
+        // Remove rating from content if it exists (for backward compatibility)
+        let postContent = post.content;
+        if (isReview && ratingStars) {
+            // Remove rating pattern like " - ★★★★☆" from content
+            // Escape special regex characters in ratingStars
+            const escapedRating = ratingStars.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const ratingPattern = new RegExp(`\\s*-\\s*${escapedRating}\\s*`, 'g');
+            postContent = postContent.replace(ratingPattern, '').trim();
+            // Also try to remove any star pattern at the end (for old data formats)
+            const starPattern = /\s*-\s*[★☆]+\s*/g;
+            postContent = postContent.replace(starPattern, '').trim();
+        }
+        
         return `
         <article class="${postClass}" style="animation-delay: ${index * 0.1}s">
             <div class="post-header">
                 <time class="post-date">${formatDate(post.timestamp)}</time>
                 ${tag ? `<span class="post-badge">${tag}</span>` : ''}
             </div>
-            <div class="post-content">${escapeHtml(post.content)}</div>
+            <div class="post-content">${escapeHtml(postContent)}</div>
             <div class="post-footer">
                 ${!isReview ? `
                     <button class="post-like ${isLiked ? 'post-liked' : ''}" data-id="${post.id}" data-likes="${likes}">
                         <span class="like-hearts">${hearts}</span>
                     </button>
+                ` : ratingStars ? `
+                    <div class="post-rating">
+                        <span class="rating-stars">${escapeHtml(ratingStars)}</span>
+                    </div>
                 ` : '<div></div>'}
                 ${isAuthenticated && !isReview ? `<button class="post-delete" data-id="${post.id}">delete</button>` : ''}
             </div>
@@ -2628,8 +2649,42 @@ console.error = function(...args) {
     originalError.apply(console, args);
 };
 
+// Prevent and reset text zoom on iOS
+function setupZoomPrevention() {
+    // Get all input and textarea elements
+    const inputs = document.querySelectorAll('input, textarea');
+    
+    inputs.forEach(input => {
+        // On focus, ensure font-size is at least 16px to prevent zoom
+        input.addEventListener('focus', () => {
+            const computedStyle = window.getComputedStyle(input);
+            const fontSize = parseFloat(computedStyle.fontSize);
+            if (fontSize < 16) {
+                input.style.fontSize = '16px';
+            }
+        });
+        
+        // On blur, reset zoom if it occurred (fallback)
+        input.addEventListener('blur', () => {
+            // Small delay to ensure blur completes
+            setTimeout(() => {
+                // Check if viewport is zoomed
+                if (window.visualViewport && window.visualViewport.scale > 1) {
+                    // Reset zoom by scrolling slightly and back
+                    const scrollY = window.scrollY;
+                    window.scrollTo(0, scrollY + 1);
+                    window.scrollTo(0, scrollY);
+                }
+            }, 100);
+        });
+    });
+}
+
 async function init() {
     setupEventListeners();
+    
+    // Setup zoom prevention for inputs
+    setupZoomPrevention();
     
     // Load tag suggestions
     updateTagSuggestions();

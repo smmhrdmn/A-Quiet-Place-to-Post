@@ -40,8 +40,9 @@ body {
     font-family: var(--font-serif);
     line-height: 1.7;
     min-height: 100vh;
-    padding: var(--spacing);
-    padding-top: calc(var(--spacing) + env(safe-area-inset-top));
+    padding: 0;
+    padding-left: var(--spacing);
+    padding-right: var(--spacing);
     padding-bottom: calc(6rem + env(safe-area-inset-bottom)); /* Space for sticky panels + home indicator */
     opacity: 0;
     animation: fadeIn 0.8s ease forwards;
@@ -90,7 +91,7 @@ header, main, footer {
 /* Header & Nav */
 header {
     margin-bottom: var(--spacing);
-    padding-top: env(safe-area-inset-top, 0);
+    padding-top: calc(var(--spacing) + env(safe-area-inset-top, 0));
     padding-bottom: 1rem;
     border-bottom: 1px solid var(--rule-dark);
 }
@@ -807,7 +808,7 @@ nav {
     min-width: 0;
     max-width: 12rem;
     font-family: var(--font-mono);
-    font-size: 0.7rem;
+    font-size: 0.8rem;
     font-weight: 400;
     letter-spacing: 0.05em;
     padding: 0.2rem 0;
@@ -829,7 +830,7 @@ nav {
 }
 
 .write-panel-sticky .post-tag-input {
-    font-size: 0.65rem;
+    font-size: 0.8rem;
     min-width: 0;
     max-width: 10rem;
     padding: 0.15rem 0;
@@ -937,6 +938,22 @@ nav {
     font-size: 0.95rem;
     line-height: 1;
     letter-spacing: 0.1em;
+}
+
+.post-rating {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+}
+
+.rating-stars {
+    font-size: 0.95rem;
+    line-height: 1;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
 }
 
 /* Delete button (only visible when authenticated) */
@@ -1084,7 +1101,7 @@ nav {
     width: 100%;
     padding: 0.5rem;
     font-family: var(--font-mono);
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     font-weight: 400;
     letter-spacing: 0.05em;
     border: 1px solid var(--rule-dark);
@@ -1139,7 +1156,7 @@ nav {
     width: 100%;
     padding: 0.5rem;
     font-family: var(--font-mono);
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     font-weight: 400;
     letter-spacing: 0.05em;
     border: 1px solid var(--rule-dark);
