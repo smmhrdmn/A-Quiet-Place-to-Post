@@ -65,16 +65,17 @@ body {
     scrollbar-gutter: stable;
 }
 
-/* Prevent scrolling when fullscreen panel is open */
+/* Prevent scrolling when fullscreen panel is open - iOS Safari compatible */
 body.fullscreen-open {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
     overflow: hidden !important;
-    touch-action: none !important;
-    -webkit-overflow-scrolling: none !important;
+    /* top is set dynamically via JS to preserve scroll position */
 }
 
 html.fullscreen-open {
     overflow: hidden !important;
-    touch-action: none !important;
 }
 
 a, .status-link, .inbox-button {
