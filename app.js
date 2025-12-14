@@ -2147,6 +2147,11 @@ async function handleCreatePost() {
     if (elements.writePanel) {
         const scrollY = elements.writePanel._savedScrollY || 0;
         elements.writePanel.classList.remove('write-panel-fullscreen');
+        // Remove touchmove prevention
+        if (elements.writePanel._preventScrollHandler) {
+            document.removeEventListener('touchmove', elements.writePanel._preventScrollHandler);
+            elements.writePanel._preventScrollHandler = null;
+        }
         document.documentElement.style.overflow = '';
         document.body.style.overflow = '';
         window.scrollTo(0, scrollY);
@@ -2273,6 +2278,11 @@ async function handleCreateSuggestion() {
     if (elements.suggestPanel) {
         const scrollY = elements.suggestPanel._savedScrollY || 0;
         elements.suggestPanel.classList.remove('suggest-panel-fullscreen');
+        // Remove touchmove prevention
+        if (elements.suggestPanel._preventScrollHandler) {
+            document.removeEventListener('touchmove', elements.suggestPanel._preventScrollHandler);
+            elements.suggestPanel._preventScrollHandler = null;
+        }
         document.documentElement.style.overflow = '';
         document.body.style.overflow = '';
         window.scrollTo(0, scrollY);
@@ -2631,6 +2641,16 @@ function setupEventListeners() {
                 document.documentElement.style.overflow = 'hidden';
                 document.body.style.overflow = 'hidden';
                 
+                // Prevent touchmove events to prevent scrolling in fullscreen
+                const preventScroll = (e) => {
+                    // Only allow scrolling within textareas
+                    if (e.target !== elements.postContent && e.target !== elements.postTag) {
+                        e.preventDefault();
+                    }
+                };
+                document.addEventListener('touchmove', preventScroll, { passive: false });
+                elements.writePanel._preventScrollHandler = preventScroll;
+                
                 // Use visual viewport height to account for keyboard
                 const updateHeight = () => {
                     if (elements.writePanel.classList.contains('write-panel-fullscreen')) {
@@ -2670,6 +2690,11 @@ function setupEventListeners() {
                         }
                         // Restore scroll position
                         const scrollY = elements.writePanel._savedScrollY || 0;
+                        // Remove touchmove prevention
+                        if (elements.writePanel._preventScrollHandler) {
+                            document.removeEventListener('touchmove', elements.writePanel._preventScrollHandler);
+                            elements.writePanel._preventScrollHandler = null;
+                        }
                         document.documentElement.style.overflow = '';
                         document.body.style.overflow = '';
                         elements.writePanel.style.removeProperty('height');
@@ -2728,6 +2753,11 @@ function setupEventListeners() {
                     // Restore scroll position
                     const scrollY = elements.writePanel._savedScrollY || 0;
                     elements.writePanel.classList.remove('write-panel-fullscreen');
+                    // Remove touchmove prevention
+                    if (elements.writePanel._preventScrollHandler) {
+                        document.removeEventListener('touchmove', elements.writePanel._preventScrollHandler);
+                        elements.writePanel._preventScrollHandler = null;
+                    }
                     document.documentElement.style.overflow = '';
                     document.body.style.overflow = '';
                     elements.writePanel.style.removeProperty('height');
@@ -2750,6 +2780,16 @@ function setupEventListeners() {
                         elements.writePanel._savedScrollY = scrollY;
                         document.documentElement.style.overflow = 'hidden';
                         document.body.style.overflow = 'hidden';
+                        
+                        // Prevent touchmove events to prevent scrolling in fullscreen
+                        const preventScroll = (e) => {
+                            // Only allow scrolling within textareas
+                            if (e.target !== elements.postContent && e.target !== elements.postTag) {
+                                e.preventDefault();
+                            }
+                        };
+                        document.addEventListener('touchmove', preventScroll, { passive: false });
+                        elements.writePanel._preventScrollHandler = preventScroll;
                     
                     // Use visual viewport height to account for keyboard
                     const updateHeight = () => {
@@ -2846,6 +2886,11 @@ function setupEventListeners() {
             const scrollY = elements.suggestPanel._savedScrollY || 0;
             elements.suggestPanel.classList.remove('suggest-panel-fullscreen');
             elements.suggestPanel.classList.add('suggest-panel-sticky');
+            // Remove touchmove prevention
+            if (elements.suggestPanel._preventScrollHandler) {
+                document.removeEventListener('touchmove', elements.suggestPanel._preventScrollHandler);
+                elements.suggestPanel._preventScrollHandler = null;
+            }
             document.documentElement.style.overflow = '';
             document.body.style.overflow = '';
             elements.suggestPanel.style.removeProperty('height');
@@ -2879,6 +2924,16 @@ function setupEventListeners() {
                 elements.suggestPanel._savedScrollY = scrollY;
                 document.documentElement.style.overflow = 'hidden';
                 document.body.style.overflow = 'hidden';
+                
+                // Prevent touchmove events to prevent scrolling in fullscreen
+                const preventScroll = (e) => {
+                    // Only allow scrolling within textareas
+                    if (e.target !== elements.suggestContent) {
+                        e.preventDefault();
+                    }
+                };
+                document.addEventListener('touchmove', preventScroll, { passive: false });
+                elements.suggestPanel._preventScrollHandler = preventScroll;
                 
                 // Use visual viewport height to account for keyboard
                 const updateHeight = () => {
@@ -2919,6 +2974,11 @@ function setupEventListeners() {
                         }
                         // Restore scroll position
                         const scrollY = elements.suggestPanel._savedScrollY || 0;
+                        // Remove touchmove prevention
+                        if (elements.suggestPanel._preventScrollHandler) {
+                            document.removeEventListener('touchmove', elements.suggestPanel._preventScrollHandler);
+                            elements.suggestPanel._preventScrollHandler = null;
+                        }
                         document.documentElement.style.overflow = '';
                         document.body.style.overflow = '';
                         elements.suggestPanel.style.removeProperty('height');
@@ -2972,6 +3032,11 @@ function setupEventListeners() {
                     // Restore scroll position
                     const scrollY = elements.suggestPanel._savedScrollY || 0;
                     elements.suggestPanel.classList.remove('suggest-panel-fullscreen');
+                    // Remove touchmove prevention
+                    if (elements.suggestPanel._preventScrollHandler) {
+                        document.removeEventListener('touchmove', elements.suggestPanel._preventScrollHandler);
+                        elements.suggestPanel._preventScrollHandler = null;
+                    }
                     document.documentElement.style.overflow = '';
                     document.body.style.overflow = '';
                     elements.suggestPanel.style.removeProperty('height');
@@ -3005,6 +3070,16 @@ function setupEventListeners() {
                 elements.suggestPanel._savedScrollY = scrollY;
                 document.documentElement.style.overflow = 'hidden';
                 document.body.style.overflow = 'hidden';
+                
+                // Prevent touchmove events to prevent scrolling in fullscreen
+                const preventScroll = (e) => {
+                    // Only allow scrolling within textareas
+                    if (e.target !== elements.suggestContent) {
+                        e.preventDefault();
+                    }
+                };
+                document.addEventListener('touchmove', preventScroll, { passive: false });
+                elements.suggestPanel._preventScrollHandler = preventScroll;
                 
                 // Use visual viewport height to account for keyboard
                 const updateHeight = () => {
