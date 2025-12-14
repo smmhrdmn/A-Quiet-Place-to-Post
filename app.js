@@ -2145,10 +2145,20 @@ async function handleCreatePost() {
     
     // Remove fullscreen mode when submitting
     if (elements.writePanel) {
+        // Restore scroll position
+        const scrollY = document.body.style.top ? parseInt(document.body.style.top.replace('-', ''), 10) : 0;
         elements.writePanel.classList.remove('write-panel-fullscreen');
         document.body.style.overflow = '';
         document.body.style.position = '';
         document.body.style.width = '';
+        document.body.style.top = '';
+        // Restore scroll position
+        window.scrollTo(0, scrollY || 0);
+        // Remove touchmove prevention
+        if (elements.writePanel._preventScrollHandler) {
+            document.removeEventListener('touchmove', elements.writePanel._preventScrollHandler);
+            elements.writePanel._preventScrollHandler = null;
+        }
     }
     
     const newPost = await createPost(content, tag);
@@ -2269,10 +2279,20 @@ async function handleCreateSuggestion() {
     
     // Remove fullscreen mode when submitting
     if (elements.suggestPanel) {
+        // Restore scroll position
+        const scrollY = document.body.style.top ? parseInt(document.body.style.top.replace('-', ''), 10) : 0;
         elements.suggestPanel.classList.remove('suggest-panel-fullscreen');
         document.body.style.overflow = '';
         document.body.style.position = '';
         document.body.style.width = '';
+        document.body.style.top = '';
+        // Restore scroll position
+        window.scrollTo(0, scrollY || 0);
+        // Remove touchmove prevention
+        if (elements.suggestPanel._preventScrollHandler) {
+            document.removeEventListener('touchmove', elements.suggestPanel._preventScrollHandler);
+            elements.suggestPanel._preventScrollHandler = null;
+        }
     }
     
     const newSuggestion = await createSuggestion(content);
@@ -2612,13 +2632,31 @@ function setupEventListeners() {
         
         const enterFullscreen = () => {
             if (window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/9c27437d-89e3-443e-a630-d9c29e767acb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app.js:2613',message:'enterFullscreen called',data:{wasFullscreen:elements.writePanel.classList.contains('write-panel-fullscreen')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                // #endregion
                 // Remove sticky positioning first to avoid glitchy transition
                 elements.writePanel.classList.remove('write-panel-sticky');
                 elements.writePanel.classList.add('write-panel-fullscreen');
-                // Prevent background scrolling
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/9c27437d-89e3-443e-a630-d9c29e767acb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app.js:2619',message:'After adding fullscreen class',data:{hasFullscreenClass:elements.writePanel.classList.contains('write-panel-fullscreen')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                // #endregion
+                // Prevent background scrolling - store scroll position and lock it
+                const scrollY = window.scrollY;
                 document.body.style.overflow = 'hidden';
                 document.body.style.position = 'fixed';
                 document.body.style.width = '100%';
+                document.body.style.top = `-${scrollY}px`;
+                
+                // Prevent touchmove events on document/body to prevent scrolling
+                const preventScroll = (e) => {
+                    // Only allow scrolling within textareas
+                    if (e.target !== elements.postContent && e.target !== elements.postTag) {
+                        e.preventDefault();
+                    }
+                };
+                document.addEventListener('touchmove', preventScroll, { passive: false });
+                elements.writePanel._preventScrollHandler = preventScroll;
                 
                 // Use visual viewport height to account for keyboard
                 const updateHeight = () => {
@@ -2657,11 +2695,21 @@ function setupEventListeners() {
                         } else {
                             window.removeEventListener('resize', updateHeight);
                         }
+                        // Restore scroll position
+                        const scrollY = document.body.style.top ? parseInt(document.body.style.top.replace('-', ''), 10) : 0;
                         document.body.style.overflow = '';
                         document.body.style.position = '';
                         document.body.style.width = '';
+                        document.body.style.top = '';
                         elements.writePanel.style.height = '';
                         elements.writePanel.style.top = '';
+                        // Restore scroll position
+                        window.scrollTo(0, scrollY || 0);
+                        // Remove touchmove prevention
+                        if (elements.writePanel._preventScrollHandler) {
+                            document.removeEventListener('touchmove', elements.writePanel._preventScrollHandler);
+                            elements.writePanel._preventScrollHandler = null;
+                        }
                         // Restore sticky class when exiting fullscreen
                         if (isAuthenticated) {
                             elements.writePanel.classList.add('write-panel-sticky');
@@ -2674,19 +2722,35 @@ function setupEventListeners() {
                 
                 // Scroll to top to ensure panel is visible
                 window.scrollTo(0, 0);
+                
+                // Track scroll events to debug scrolling issue
+                const scrollHandler = () => {
+                    // #region agent log
+                    fetch('http://127.0.0.1:7242/ingest/9c27437d-89e3-443e-a630-d9c29e767acb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app.js:2678',message:'Scroll detected in fullscreen write',data:{scrollY:window.scrollY,bodyPosition:document.body.style.position,bodyOverflow:document.body.style.overflow,isFullscreen:elements.writePanel.classList.contains('write-panel-fullscreen')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+                    // #endregion
+                };
+                window.addEventListener('scroll', scrollHandler, { passive: true });
+                
+                // Store handler for cleanup
+                if (!elements.writePanel._scrollHandler) {
+                    elements.writePanel._scrollHandler = scrollHandler;
+                }
             }
         };
         
         // Use click/touchstart to enter fullscreen, then focus
         const handleInputInteraction = (e) => {
             enterFullscreen();
-            // Small delay to ensure fullscreen is set before focusing
-            requestAnimationFrame(() => {
-                elements.postContent.focus();
-            });
+            // Call focus() synchronously to maintain user interaction chain for mobile keyboard
+            elements.postContent.focus();
         };
         
-        elements.postContent.addEventListener('focus', enterFullscreen);
+        elements.postContent.addEventListener('focus', (e) => {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/9c27437d-89e3-443e-a630-d9c29e767acb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app.js:2697',message:'Focus event fired',data:{isFullscreen:elements.writePanel.classList.contains('write-panel-fullscreen')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+            // #endregion
+            enterFullscreen();
+        });
         elements.postContent.addEventListener('click', handleInputInteraction);
         elements.postContent.addEventListener('touchstart', handleInputInteraction);
         
@@ -2694,6 +2758,9 @@ function setupEventListeners() {
             // Delay to allow submit button clicks to work
             setTimeout(() => {
                 if (document.activeElement !== elements.postTag) {
+                    // #region agent log
+                    fetch('http://127.0.0.1:7242/ingest/9c27437d-89e3-443e-a630-d9c29e767acb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app.js:2696',message:'postContent blur - removing fullscreen',data:{activeElement:document.activeElement?.tagName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+                    // #endregion
                     elements.writePanel.classList.remove('write-panel-fullscreen');
                     document.body.style.overflow = '';
                     document.body.style.position = '';
@@ -2710,10 +2777,22 @@ function setupEventListeners() {
             if (window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
                     if (!elements.writePanel.classList.contains('write-panel-fullscreen')) {
                         elements.writePanel.classList.add('write-panel-fullscreen');
-                        // Prevent background scrolling
+                        // Prevent background scrolling - store scroll position and lock it
+                        const scrollY = window.scrollY;
                         document.body.style.overflow = 'hidden';
                         document.body.style.position = 'fixed';
                         document.body.style.width = '100%';
+                        document.body.style.top = `-${scrollY}px`;
+                        
+                        // Prevent touchmove events on document/body to prevent scrolling
+                        const preventScroll = (e) => {
+                            // Only allow scrolling within textareas
+                            if (e.target !== elements.postContent && e.target !== elements.postTag) {
+                                e.preventDefault();
+                            }
+                        };
+                        document.addEventListener('touchmove', preventScroll, { passive: false });
+                        elements.writePanel._preventScrollHandler = preventScroll;
                     
                     // Use visual viewport height to account for keyboard
                     const updateHeight = () => {
@@ -2751,10 +2830,8 @@ function setupEventListeners() {
         // Use click/touchstart to enter fullscreen, then focus
         const handleTagInteraction = (e) => {
             enterFullscreen();
-            // Small delay to ensure fullscreen is set before focusing
-            requestAnimationFrame(() => {
-                elements.postTag.focus();
-            });
+            // Call focus() synchronously to maintain user interaction chain for mobile keyboard
+            elements.postTag.focus();
         };
         
         elements.postTag.addEventListener('focus', enterFullscreen);
@@ -2809,17 +2886,27 @@ function setupEventListeners() {
     // Close button handler for suggest panel
     if (elements.suggestPanelClose) {
         elements.suggestPanelClose.addEventListener('click', () => {
+            // Restore scroll position
+            const scrollY = document.body.style.top ? parseInt(document.body.style.top.replace('-', ''), 10) : 0;
             elements.suggestPanel.classList.remove('suggest-panel-fullscreen');
             // Restore sticky class
             elements.suggestPanel.classList.add('suggest-panel-sticky');
             document.body.style.overflow = '';
             document.body.style.position = '';
             document.body.style.width = '';
+            document.body.style.top = '';
             if (elements.suggestPanel.style.height) {
                 elements.suggestPanel.style.height = '';
             }
             if (elements.suggestPanel.style.top) {
                 elements.suggestPanel.style.top = '';
+            }
+            // Restore scroll position
+            window.scrollTo(0, scrollY || 0);
+            // Remove touchmove prevention
+            if (elements.suggestPanel._preventScrollHandler) {
+                document.removeEventListener('touchmove', elements.suggestPanel._preventScrollHandler);
+                elements.suggestPanel._preventScrollHandler = null;
             }
             // Clear input text when closing
             elements.suggestContent.value = '';
@@ -2836,9 +2923,31 @@ function setupEventListeners() {
         
         const enterFullscreen = () => {
             if (window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/9c27437d-89e3-443e-a630-d9c29e767acb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app.js:2880',message:'enterFullscreen called for suggest',data:{wasFullscreen:elements.suggestPanel.classList.contains('suggest-panel-fullscreen')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                // #endregion
+                // Remove sticky positioning first to avoid glitchy transition
+                elements.suggestPanel.classList.remove('suggest-panel-sticky');
                 elements.suggestPanel.classList.add('suggest-panel-fullscreen');
-                // Prevent background scrolling
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/9c27437d-89e3-443e-a630-d9c29e767acb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app.js:2886',message:'After adding fullscreen class for suggest',data:{hasFullscreenClass:elements.suggestPanel.classList.contains('suggest-panel-fullscreen')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                // #endregion
+                // Prevent background scrolling - store scroll position and lock it
+                const scrollY = window.scrollY;
                 document.body.style.overflow = 'hidden';
+                document.body.style.position = 'fixed';
+                document.body.style.width = '100%';
+                document.body.style.top = `-${scrollY}px`;
+                
+                // Prevent touchmove events on document/body to prevent scrolling
+                const preventScroll = (e) => {
+                    // Only allow scrolling within textareas
+                    if (e.target !== elements.suggestContent) {
+                        e.preventDefault();
+                    }
+                };
+                document.addEventListener('touchmove', preventScroll, { passive: false });
+                elements.suggestPanel._preventScrollHandler = preventScroll;
                 
                 // Use visual viewport height to account for keyboard
                 const updateHeight = () => {
@@ -2877,11 +2986,21 @@ function setupEventListeners() {
                         } else {
                             window.removeEventListener('resize', updateHeight);
                         }
+                        // Restore scroll position
+                        const scrollY = document.body.style.top ? parseInt(document.body.style.top.replace('-', ''), 10) : 0;
                         document.body.style.overflow = '';
                         document.body.style.position = '';
                         document.body.style.width = '';
+                        document.body.style.top = '';
                         elements.suggestPanel.style.height = '';
                         elements.suggestPanel.style.top = '';
+                        // Restore scroll position
+                        window.scrollTo(0, scrollY || 0);
+                        // Remove touchmove prevention
+                        if (elements.suggestPanel._preventScrollHandler) {
+                            document.removeEventListener('touchmove', elements.suggestPanel._preventScrollHandler);
+                            elements.suggestPanel._preventScrollHandler = null;
+                        }
                         heightUpdateHandler = null;
                         observer.disconnect();
                     }
@@ -2890,16 +3009,27 @@ function setupEventListeners() {
                 
                 // Scroll to top to ensure panel is visible
                 window.scrollTo(0, 0);
+                
+                // Track scroll events to debug scrolling issue
+                const scrollHandler = () => {
+                    // #region agent log
+                    fetch('http://127.0.0.1:7242/ingest/9c27437d-89e3-443e-a630-d9c29e767acb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app.js:2950',message:'Scroll detected in fullscreen suggest',data:{scrollY:window.scrollY,bodyPosition:document.body.style.position,bodyOverflow:document.body.style.overflow,isFullscreen:elements.suggestPanel.classList.contains('suggest-panel-fullscreen')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+                    // #endregion
+                };
+                window.addEventListener('scroll', scrollHandler, { passive: true });
+                
+                // Store handler for cleanup
+                if (!elements.suggestPanel._scrollHandler) {
+                    elements.suggestPanel._scrollHandler = scrollHandler;
+                }
             }
         };
         
         // Use click/touchstart to enter fullscreen, then focus
         const handleSuggestInteraction = (e) => {
             enterFullscreen();
-            // Small delay to ensure fullscreen is set before focusing
-            requestAnimationFrame(() => {
-                elements.suggestContent.focus();
-            });
+            // Call focus() synchronously to maintain user interaction chain for mobile keyboard
+            elements.suggestContent.focus();
         };
         
         elements.suggestContent.addEventListener('focus', enterFullscreen);
@@ -2915,12 +3045,22 @@ function setupEventListeners() {
                 
                 // Don't exit fullscreen if user clicked a button within the panel
                 if (!isWithinPanel && elements.suggestPanel.classList.contains('suggest-panel-fullscreen')) {
+                    // Restore scroll position
+                    const scrollY = document.body.style.top ? parseInt(document.body.style.top.replace('-', ''), 10) : 0;
                     elements.suggestPanel.classList.remove('suggest-panel-fullscreen');
                     document.body.style.overflow = '';
                     document.body.style.position = '';
                     document.body.style.width = '';
+                    document.body.style.top = '';
                     elements.suggestPanel.style.height = '';
                     elements.suggestPanel.style.top = '';
+                    // Restore scroll position
+                    window.scrollTo(0, scrollY || 0);
+                    // Remove touchmove prevention
+                    if (elements.suggestPanel._preventScrollHandler) {
+                        document.removeEventListener('touchmove', elements.suggestPanel._preventScrollHandler);
+                        elements.suggestPanel._preventScrollHandler = null;
+                    }
                 }
             }, 200);
         });
@@ -2928,6 +3068,9 @@ function setupEventListeners() {
     
     // Random word
     elements.randomWordButton.addEventListener('click', (e) => {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/9c27437d-89e3-443e-a630-d9c29e767acb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app.js:2930',message:'Random word button clicked',data:{isFullscreen:elements.suggestPanel.classList.contains('suggest-panel-fullscreen')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
         e.preventDefault();
         const word = getRandomWord();
         const currentText = elements.suggestContent.value.trim();
@@ -2940,10 +3083,22 @@ function setupEventListeners() {
                 // Remove sticky positioning first to avoid glitchy transition
                 elements.suggestPanel.classList.remove('suggest-panel-sticky');
                 elements.suggestPanel.classList.add('suggest-panel-fullscreen');
-                // Prevent background scrolling
+                // Prevent background scrolling - store scroll position and lock it
+                const scrollY = window.scrollY;
                 document.body.style.overflow = 'hidden';
                 document.body.style.position = 'fixed';
                 document.body.style.width = '100%';
+                document.body.style.top = `-${scrollY}px`;
+                
+                // Prevent touchmove events on document/body to prevent scrolling
+                const preventScroll = (e) => {
+                    // Only allow scrolling within textareas
+                    if (e.target !== elements.suggestContent) {
+                        e.preventDefault();
+                    }
+                };
+                document.addEventListener('touchmove', preventScroll, { passive: false });
+                elements.suggestPanel._preventScrollHandler = preventScroll;
                 
                 // Use visual viewport height to account for keyboard
                 const updateHeight = () => {
@@ -2974,15 +3129,11 @@ function setupEventListeners() {
             }
         }
         
-        // Focus immediately to open keyboard - use double requestAnimationFrame to ensure DOM is ready
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                elements.suggestContent.focus();
-                // Set cursor position to the end of the text
-                const textLength = elements.suggestContent.value.length;
-                elements.suggestContent.setSelectionRange(textLength, textLength);
-            });
-        });
+        // Focus immediately to open keyboard - call synchronously to maintain user interaction chain
+        elements.suggestContent.focus();
+        // Set cursor position to the end of the text
+        const textLength = elements.suggestContent.value.length;
+        elements.suggestContent.setSelectionRange(textLength, textLength);
     });
     
     // Playlist save
