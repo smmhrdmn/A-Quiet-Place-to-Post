@@ -27,9 +27,11 @@
 }
 
 html {
-    font-size: 18px;
+    font-size: 20px;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    scrollbar-gutter: stable;
+    overflow-y: scroll;
 }
 
 body {
@@ -39,9 +41,13 @@ body {
     line-height: 1.7;
     min-height: 100vh;
     padding: var(--spacing);
+    padding-top: calc(var(--spacing) + env(safe-area-inset-top));
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom)); /* Space for sticky panels + home indicator */
     opacity: 0;
     animation: fadeIn 0.8s ease forwards;
     cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z' fill='%23ff69b4'/%3E%3C/svg%3E") 0 0, auto;
+    overflow-x: hidden;
+    scrollbar-gutter: stable;
 }
 
 a, .status-link, .inbox-button {
@@ -83,9 +89,52 @@ header, main, footer {
 
 /* Header & Nav */
 header {
-    margin-bottom: var(--spacing-lg);
+    margin-bottom: var(--spacing);
+    padding-top: env(safe-area-inset-top, 0);
     padding-bottom: 1rem;
     border-bottom: 1px solid var(--rule-dark);
+}
+
+/* Tabs Navigation */
+.tabs-nav {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    margin-bottom: var(--spacing);
+    padding-bottom: 0;
+    border-bottom: 1px solid var(--rule);
+    display: flex;
+    gap: 2rem;
+    justify-content: flex-start;
+    align-items: flex-end;
+}
+
+.tab-button {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 400;
+    text-transform: lowercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    padding: 0.5rem 0;
+    margin-bottom: -1px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.tab-button:hover {
+    color: var(--text);
+}
+
+.tab-button.active {
+    color: var(--text);
+    font-weight: 500;
+    border-bottom-color: #ff69b4;
+    padding-bottom: calc(0.5rem - 1px);
 }
 
 nav {
@@ -94,10 +143,16 @@ nav {
     align-items: center;
 }
 
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+
 .site-title {
     font-family: var(--font-mono);
     font-weight: 300;
-    font-size: 1rem;
+    font-size: 1.05rem;
     letter-spacing: 0.1em;
 }
 
@@ -106,7 +161,7 @@ nav {
     align-items: center;
     gap: 0.5rem;
     font-family: var(--font-mono);
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     font-weight: 300;
     letter-spacing: 0.05em;
 }
@@ -119,7 +174,7 @@ nav {
 
 .status-link {
     font-family: var(--font-mono);
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     font-weight: 400;
     text-transform: lowercase;
     letter-spacing: 0.05em;
@@ -148,7 +203,7 @@ nav {
 
 .inbox-button {
     font-family: var(--font-mono);
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     font-weight: 400;
     text-transform: lowercase;
     letter-spacing: 0.05em;
@@ -180,7 +235,7 @@ nav {
 
 .status-dot-offline {
     background: transparent;
-    border: 1.5px solid rgba(255, 105, 180, 0.5);
+    border: 1.25px solid rgba(255, 105, 180, 0.5);
     animation: glow-offline 2s ease-in-out infinite;
 }
 
@@ -240,7 +295,7 @@ nav {
 
 .auth-panel input {
     font-family: var(--font-mono);
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     font-weight: 400;
     padding: 0.5rem 0;
     border: none;
@@ -268,7 +323,7 @@ nav {
 
 .auth-panel button {
     font-family: var(--font-mono);
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     font-weight: 400;
     text-transform: lowercase;
     letter-spacing: 0.05em;
@@ -289,7 +344,7 @@ nav {
 
 .auth-form h3 {
     font-family: var(--font-mono);
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     font-weight: 400;
     text-transform: lowercase;
     letter-spacing: 0.05em;
@@ -313,6 +368,15 @@ nav {
     margin-bottom: 0;
 }
 
+/* Tab Content */
+.tab-content {
+    margin-bottom: var(--spacing-lg);
+}
+
+.tab-content.hidden {
+    display: none;
+}
+
 /* Write Panel */
 .write-panel {
     margin-bottom: var(--spacing-lg);
@@ -322,10 +386,27 @@ nav {
     background: rgba(255, 250, 250, 0.6);
 }
 
+.write-panel-sticky,
+.write-panel.write-panel-sticky {
+    position: fixed !important;
+    bottom: calc(1.5rem + env(safe-area-inset-bottom)) !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: calc(100% - 4rem) !important;
+    max-width: calc(var(--max-width) - 2rem) !important;
+    margin: 0 !important;
+    padding: 1rem !important;
+    border: 1px solid var(--rule) !important;
+    background: rgba(255, 245, 250, 0.95) !important;
+    z-index: 100 !important;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05) !important;
+    box-sizing: border-box !important;
+}
+
 .write-panel textarea {
     width: 100%;
     font-family: var(--font-serif);
-    font-size: 1.1rem;
+    font-size: 1.2rem;
     line-height: 1.8;
     color: var(--text);
     background: transparent;
@@ -337,6 +418,16 @@ nav {
     padding: 0.5rem 0;
 }
 
+.write-panel-sticky textarea {
+    min-height: 2rem;
+    max-height: 3.5rem;
+    margin-bottom: 0.4rem;
+    font-size: 1.05rem;
+    line-height: 1.6;
+    padding: 0.2rem 0;
+    overflow-y: auto;
+}
+
 .write-panel textarea::placeholder {
     color: var(--text-muted);
     font-style: italic;
@@ -344,13 +435,29 @@ nav {
 
 .write-actions {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+
+.write-actions #post-submit {
+    margin-left: auto;
+}
+
+.write-panel-sticky .write-actions {
+    margin-top: 0;
+}
+
+.write-panel-sticky .write-actions button {
+    font-size: 0.7rem;
+    padding: 0.15rem 0;
 }
 
 .write-actions button {
     font-family: var(--font-mono);
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     font-weight: 400;
     text-transform: lowercase;
     letter-spacing: 0.05em;
@@ -376,9 +483,11 @@ nav {
 .password-reset-link {
     color: var(--text-muted);
     text-decoration: underline;
-    text-decoration-thickness: 1px;
-    text-underline-offset: 2px;
-    font-size: 0.65rem;
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 3px;
+    font-size: 0.75rem;
+    font-family: var(--font-mono);
+    letter-spacing: 0.05em;
 }
 
 .password-change-link:hover,
@@ -396,10 +505,27 @@ nav {
     background: rgba(255, 250, 250, 0.4);
 }
 
+.suggest-panel-sticky,
+.suggest-panel.suggest-panel-sticky {
+    position: fixed !important;
+    bottom: calc(1.5rem + env(safe-area-inset-bottom)) !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: calc(100% - 4rem) !important;
+    max-width: calc(var(--max-width) - 2rem) !important;
+    margin: 0 !important;
+    padding: 1rem !important;
+    border: 1px solid var(--rule) !important;
+    background: rgba(255, 245, 250, 0.95) !important;
+    z-index: 100 !important;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05) !important;
+    box-sizing: border-box !important;
+}
+
 .suggest-panel textarea {
     width: 100%;
     font-family: var(--font-serif);
-    font-size: 1rem;
+    font-size: 1.2rem;
     line-height: 1.8;
     color: var(--text);
     background: transparent;
@@ -409,6 +535,16 @@ nav {
     outline: none;
     margin-bottom: 1rem;
     padding: 0.5rem 0;
+}
+
+.suggest-panel-sticky textarea {
+    min-height: 1.5rem;
+    max-height: 3rem;
+    margin-bottom: 0.4rem;
+    font-size: 1.05rem;
+    line-height: 1.6;
+    padding: 0.2rem 0;
+    overflow-y: auto;
 }
 
 .suggest-panel textarea::placeholder {
@@ -422,9 +558,18 @@ nav {
     align-items: center;
 }
 
+.suggest-panel-sticky .suggest-actions {
+    margin-top: 0;
+}
+
+.suggest-panel-sticky .suggest-actions button {
+    font-size: 0.7rem;
+    padding: 0.15rem 0;
+}
+
 .suggest-actions button {
     font-family: var(--font-mono);
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     font-weight: 400;
     text-transform: lowercase;
     letter-spacing: 0.05em;
@@ -468,22 +613,66 @@ nav {
 
 .inbox-title {
     font-family: var(--font-mono);
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     font-weight: 400;
     text-transform: lowercase;
     letter-spacing: 0.1em;
     color: var(--text);
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--spacing);
+}
+
+/* Suggestions Panel (in tab) */
+.suggestions-panel {
+    margin-bottom: var(--spacing-lg);
+    padding: var(--spacing);
+    padding-top: 1.5rem;
+    border: 1px solid var(--rule);
+    background: rgba(255, 250, 250, 0.5);
+}
+
+.suggestions-title {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    font-weight: 400;
+    text-transform: lowercase;
+    letter-spacing: 0.1em;
+    color: var(--text);
+    margin-bottom: var(--spacing);
+}
+
+/* Admin Panels */
+.admin-panel {
+    margin-bottom: var(--spacing-lg);
+    padding: var(--spacing);
+    padding-top: 1.5rem;
+    border: 1px solid var(--rule);
+    background: rgba(255, 250, 250, 0.5);
+}
+
+.admin-panel-title {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    font-weight: 400;
+    text-transform: lowercase;
+    letter-spacing: 0.1em;
+    color: var(--text);
+    margin-bottom: var(--spacing);
+}
+
+.account-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
 }
 
 .inbox-container {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: var(--spacing);
 }
 
 .inbox-item {
-    padding-bottom: 1.5rem;
+    padding-bottom: var(--spacing);
     border-bottom: 1px solid var(--rule);
 }
 
@@ -494,8 +683,8 @@ nav {
 
 .inbox-content {
     font-family: var(--font-serif);
-    font-size: 1rem;
-    line-height: 1.7;
+    font-size: 1.05rem;
+    line-height: 1.85;
     color: var(--text);
     white-space: pre-wrap;
     margin-bottom: 1rem;
@@ -503,13 +692,14 @@ nav {
 
 .inbox-actions {
     display: flex;
-    gap: 1rem;
+    gap: 1.5rem;
+    align-items: center;
 }
 
 .inbox-approve,
 .inbox-delete {
     font-family: var(--font-mono);
-    font-size: 0.65rem;
+    font-size: 0.75rem;
     font-weight: 400;
     text-transform: lowercase;
     letter-spacing: 0.05em;
@@ -518,8 +708,8 @@ nav {
     cursor: pointer;
     padding: 0;
     text-decoration: underline;
-    text-decoration-thickness: 1px;
-    text-underline-offset: 2px;
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 3px;
     transition: opacity 0.2s ease, color 0.2s ease;
 }
 
@@ -541,15 +731,18 @@ nav {
 
 .inbox-empty {
     font-family: var(--font-mono);
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     font-weight: 300;
     color: var(--text-muted);
     font-style: italic;
+    text-align: center;
+    padding: var(--spacing) 0;
 }
 
 /* Feed */
 .feed {
     margin-bottom: var(--spacing-lg);
+    padding-bottom: 2rem; /* Space for sticky write panel */
 }
 
 .posts-container {
@@ -579,7 +772,7 @@ nav {
 
 .post-date {
     font-family: var(--font-mono);
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     font-weight: 400;
     color: var(--accent);
     letter-spacing: 0.1em;
@@ -588,17 +781,110 @@ nav {
 
 .post-badge {
     font-family: var(--font-mono);
-    font-size: 0.6rem;
+    font-size: 0.65rem;
     font-weight: 300;
     color: #ff69b4;
     letter-spacing: 0.05em;
     text-transform: lowercase;
-    opacity: 0.7;
+    opacity: 0.8;
+}
+
+.write-tag-section {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0;
+    flex-wrap: wrap;
+    max-width: 100%;
+    overflow: hidden;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.post-tag-input {
+    flex: 0 0 auto;
+    width: 2.5rem;
+    min-width: 0;
+    max-width: 12rem;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 400;
+    letter-spacing: 0.05em;
+    padding: 0.2rem 0;
+    border: none;
+    background: transparent;
+    color: var(--text);
+    outline: none;
+    transition: color 0.2s ease;
+}
+
+.post-tag-input:focus {
+    color: #ff69b4;
+}
+
+.post-tag-input::placeholder {
+    color: var(--text-muted);
+    font-style: italic;
+    opacity: 0.6;
+}
+
+.write-panel-sticky .post-tag-input {
+    font-size: 0.65rem;
+    min-width: 0;
+    max-width: 10rem;
+    padding: 0.15rem 0;
+    width: 2.2rem;
+}
+
+.tag-suggestions {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.4rem;
+    flex: 0 0 auto;
+    overflow: hidden;
+    margin-left: 0.3rem;
+}
+
+.tag-chip {
+    flex: 0 0 auto;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    font-weight: 400;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    background: transparent;
+    border: none;
+    padding: 0.15rem 0.4rem;
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 8rem;
+}
+
+.tag-chip:hover {
+    color: #ff69b4;
+    text-decoration-color: #ff69b4;
+}
+
+.write-panel-sticky .tag-suggestions {
+    gap: 0.3rem;
+}
+
+.write-panel-sticky .tag-chip {
+    font-size: 0.6rem;
+    padding: 0.1rem 0.3rem;
+    max-width: 6rem;
 }
 
 .post-content {
     font-family: var(--font-serif);
-    font-size: 1.15rem;
+    font-size: 1.05rem;
     font-weight: 400;
     line-height: 1.85;
     white-space: pre-wrap;
@@ -622,7 +908,7 @@ nav {
 
 .post-like {
     font-family: var(--font-mono);
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     font-weight: 400;
     color: var(--text-muted);
     background: none;
@@ -634,12 +920,21 @@ nav {
     transition: color 0.2s ease;
 }
 
-.post-like:hover {
+.post-like:hover:not(.post-liked) {
     color: #ff69b4;
 }
 
+.post-liked {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.post-liked:hover {
+    color: var(--text-muted);
+}
+
 .like-hearts {
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     line-height: 1;
     letter-spacing: 0.1em;
 }
@@ -647,7 +942,7 @@ nav {
 /* Delete button (only visible when authenticated) */
 .post-delete {
     font-family: var(--font-mono);
-    font-size: 0.65rem;
+    font-size: 0.7rem;
     font-weight: 400;
     color: var(--text-muted);
     background: none;
@@ -673,7 +968,7 @@ nav {
 /* Loading & Empty States */
 .loading {
     font-family: var(--font-mono);
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     font-weight: 300;
     color: var(--text-muted);
     letter-spacing: 0.2em;
@@ -681,31 +976,52 @@ nav {
 
 .empty-state {
     font-family: var(--font-mono);
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     font-weight: 300;
     color: var(--text-muted);
     font-style: italic;
 }
 
-/* Playlist Section */
-.playlist-section {
-    margin: 2rem 0;
-    padding: 1.5rem 0;
-    border-top: 1px solid var(--rule);
+/* Playlist Section (in header) */
+.playlist-section-header {
+    display: flex;
+    align-items: center;
 }
 
-.playlist-title {
-    font-family: var(--font-serif);
-    font-size: 1.5rem;
-    font-weight: 400;
-    margin-bottom: 1rem;
-    color: var(--text);
+.playlist-section-header.hidden {
+    display: none;
+}
+
+.playlist-volume-toggle {
+    background: none;
+    border: none;
+    font-size: 0.75rem;
+    cursor: pointer;
+    padding: 0.25rem;
+    line-height: 1;
+    transition: opacity 0.2s ease;
+    flex-shrink: 0;
+    display: block !important;
+    visibility: visible !important;
+}
+
+.playlist-volume-toggle:hover {
+    opacity: 0.7;
 }
 
 .playlist-container {
+    flex: 1;
     display: flex;
     justify-content: center;
-    margin: 1rem 0;
+}
+
+.hidden-player {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
 }
 
 .playlist-error {
@@ -713,24 +1029,36 @@ nav {
     font-style: italic;
     text-align: center;
     font-family: var(--font-mono);
+    font-size: 0.85rem;
+}
+
+.playlist-error-message {
+    padding: 1rem;
+    text-align: center;
+    font-family: var(--font-mono);
     font-size: 0.8rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+}
+
+.playlist-error-message p {
+    margin: 0;
 }
 
 /* Playlist Settings (Admin) */
 .playlist-settings {
-    margin-bottom: 2rem;
-    padding-bottom: 1.5rem;
-    border-bottom: 1px solid var(--rule);
+    margin-bottom: 0;
+    padding-bottom: 0;
 }
 
 .playlist-settings-title {
     font-family: var(--font-mono);
-    font-size: 0.75rem;
+    font-size: 0.85rem;
     font-weight: 400;
     text-transform: lowercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.1em;
     color: var(--text);
-    margin-bottom: 0.75rem;
+    margin-bottom: 1rem;
 }
 
 .playlist-type-select {
@@ -738,9 +1066,11 @@ nav {
     padding: 0.5rem;
     font-family: var(--font-mono);
     font-size: 0.75rem;
+    font-weight: 400;
+    letter-spacing: 0.05em;
     border: 1px solid var(--rule-dark);
     border-radius: 4px;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
     background: #fff;
     color: var(--text);
     outline: none;
@@ -755,9 +1085,11 @@ nav {
     padding: 0.5rem;
     font-family: var(--font-mono);
     font-size: 0.75rem;
+    font-weight: 400;
+    letter-spacing: 0.05em;
     border: 1px solid var(--rule-dark);
     border-radius: 4px;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
     background: #fff;
     color: var(--text);
     outline: none;
@@ -774,7 +1106,7 @@ nav {
 .playlist-save-button {
     padding: 0.5rem 1rem;
     font-family: var(--font-mono);
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     font-weight: 400;
     text-transform: lowercase;
     letter-spacing: 0.05em;
@@ -797,9 +1129,184 @@ nav {
     cursor: not-allowed;
 }
 
+/* Letterboxd Settings (Admin) */
+.letterboxd-settings {
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.letterboxd-url-input {
+    width: 100%;
+    padding: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 400;
+    letter-spacing: 0.05em;
+    border: 1px solid var(--rule-dark);
+    border-radius: 4px;
+    margin-bottom: 0.75rem;
+    background: #fff;
+    color: var(--text);
+    outline: none;
+}
+
+.letterboxd-url-input:focus {
+    border-color: #ff69b4;
+}
+
+.letterboxd-url-input::placeholder {
+    color: var(--text-muted);
+}
+
+.letterboxd-fetch-button {
+    padding: 0.5rem 1rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 400;
+    text-transform: lowercase;
+    letter-spacing: 0.05em;
+    background: transparent;
+    border: 1px solid var(--rule-dark);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--text);
+    margin-bottom: 1.5rem;
+}
+
+.letterboxd-fetch-button:hover {
+    background: rgba(0, 0, 0, 0.05);
+    border-color: #ff69b4;
+    color: #ff69b4;
+}
+
+.letterboxd-fetch-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.letterboxd-reviews-container {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--rule);
+}
+
+.letterboxd-reviews-title {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    font-weight: 400;
+    text-transform: lowercase;
+    letter-spacing: 0.05em;
+    color: var(--text);
+    margin-bottom: 1rem;
+}
+
+.letterboxd-reviews-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.letterboxd-review-item {
+    padding: 0.75rem;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    background: rgba(255, 250, 250, 0.5);
+}
+
+.letterboxd-review-checkbox {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    cursor: pointer;
+}
+
+.letterboxd-review-checkbox input[type="checkbox"] {
+    margin-top: 0.2rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    accent-color: #ff69b4;
+}
+
+.letterboxd-review-content {
+    flex: 1;
+}
+
+.letterboxd-review-title {
+    font-family: var(--font-serif);
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 0.25rem;
+}
+
+.letterboxd-review-rating {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: #ff69b4;
+    margin-bottom: 0.25rem;
+}
+
+.letterboxd-review-preview {
+    font-family: var(--font-serif);
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+    font-style: italic;
+}
+
+.letterboxd-empty {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-style: italic;
+    text-align: center;
+    padding: 1rem 0;
+}
+
+.letterboxd-save-button {
+    padding: 0.5rem 1rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 400;
+    text-transform: lowercase;
+    letter-spacing: 0.05em;
+    background: transparent;
+    border: 1px solid var(--rule-dark);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--text);
+}
+
+.letterboxd-save-button:hover {
+    background: rgba(0, 0, 0, 0.05);
+    border-color: #ff69b4;
+    color: #ff69b4;
+}
+
+.letterboxd-save-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Review Post Styling */
+.post-review .post-content {
+    font-style: italic;
+    opacity: 0.95;
+}
+
+.post-review .post-badge {
+    opacity: 0.9;
+}
+
 /* Footer */
 footer {
     padding-top: var(--spacing);
+    padding-bottom: calc(8rem + env(safe-area-inset-bottom)); /* Space to scroll above sticky panel */
 }
 
 .footer-content {
@@ -809,7 +1316,7 @@ footer {
 }
 
 .footer-decoration {
-    font-size: 1.2rem;
+    font-size: 1.25rem;
     color: #ff69b4;
     opacity: 0.3;
     transform: rotate(-15deg);
@@ -830,7 +1337,7 @@ footer {
 /* Responsive */
 @media (max-width: 600px) {
     html {
-        font-size: 16px;
+        font-size: 18px;
     }
     
     :root {

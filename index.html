@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>nez updates</title>
+    <title>nez</title>
     
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#ff69b4">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="nez">
@@ -16,10 +17,10 @@
     <link rel="manifest" href="manifest.json">
     
     <!-- iOS Icons -->
-    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="apple-touch-icon" href="Nez_192.png">
     
     <!-- Favicon -->
-    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="Nez_192.png">
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -33,15 +34,34 @@
     <header>
         <nav>
             <span class="site-title">✎♡❀</span>
-            <div class="status-container">
-                <span class="status-prefix">nez is</span>
-                <button id="status-toggle" class="status-link">
-                    <span id="status-word">offline</span>
-                </button>
-                <span id="status-dot" class="status-dot status-dot-offline"></span>
+            <div class="header-right">
+                <!-- Music Playlist (in header) -->
+                <div id="playlist-section" class="playlist-section-header hidden">
+                    <button id="playlist-volume-toggle" class="playlist-volume-toggle" aria-label="toggle volume">
+                        <span id="playlist-volume-icon">🔇</span>
+                    </button>
+                    <!-- Hidden player container -->
+                    <div id="playlist-container" class="playlist-container hidden-player">
+                        <!-- Music embed will be inserted here (hidden) -->
+                    </div>
+                </div>
+                <div class="status-container">
+                    <span class="status-prefix">nez is</span>
+                    <button id="status-toggle" class="status-link">
+                        <span id="status-word">offline</span>
+                    </button>
+                    <span id="status-dot" class="status-dot status-dot-offline"></span>
+                </div>
             </div>
         </nav>
     </header>
+
+    <!-- Tabs (only visible when authenticated) -->
+    <nav id="tabs-nav" class="tabs-nav hidden">
+        <button class="tab-button active" data-tab="feed">feed</button>
+        <button class="tab-button" data-tab="suggestions">suggestions</button>
+        <button class="tab-button" data-tab="admin">admin</button>
+    </nav>
 
     <main>
         <!-- Auth Panel (hidden by default) -->
@@ -63,48 +83,7 @@
             </div>
         </section>
 
-        <!-- Write Panel (hidden until authenticated) -->
-        <section id="write-panel" class="write-panel hidden">
-            <textarea 
-                id="post-content" 
-                placeholder="write something..."
-                rows="4"
-            ></textarea>
-            <div class="write-actions">
-                <button id="post-submit">post</button>
-            </div>
-        </section>
-
-        <!-- Inbox Panel (hidden until authenticated) -->
-        <section id="inbox-panel" class="inbox-panel hidden">
-            <h2 class="inbox-title">inbox</h2>
-            
-            <!-- Playlist Settings (admin only) -->
-            <div class="playlist-settings">
-                <h3 class="playlist-settings-title">playlist settings</h3>
-                <select id="playlist-type-select" class="playlist-type-select">
-                    <option value="youtube">YouTube</option>
-                    <option value="spotify">Spotify</option>
-                    <option value="soundcloud">SoundCloud</option>
-                </select>
-                <input 
-                    type="text" 
-                    id="playlist-url-input" 
-                    placeholder="playlist url"
-                    class="playlist-url-input"
-                >
-                <button id="playlist-save" class="playlist-save-button">save playlist</button>
-            </div>
-            
-            <div id="inbox-container" class="inbox-container">
-                <!-- Suggestions will be rendered here -->
-            </div>
-            <div id="inbox-empty" class="inbox-empty hidden">
-                <p>no suggestions</p>
-            </div>
-        </section>
-
-        <!-- Posts Feed -->
+        <!-- Posts Feed (shown in tab when authenticated, shown directly when logged out) -->
         <section id="feed" class="feed">
             <div id="posts-container" class="posts-container">
                 <!-- Posts will be rendered here -->
@@ -117,16 +96,95 @@
             </div>
         </section>
 
-        <!-- Music Playlist (visible to all) -->
-        <section id="playlist-section" class="playlist-section hidden">
-            <h2 class="playlist-title">playlist</h2>
-            <div id="playlist-container" class="playlist-container">
-                <!-- Music embed will be inserted here -->
+        <!-- Tab Content: Feed (visible when authenticated, tab="feed") -->
+        <section id="tab-feed" class="tab-content hidden">
+            <!-- Feed content is in #feed above, this tab just controls visibility -->
+        </section>
+
+        <!-- Tab Content: Suggestions (visible when authenticated, tab="suggestions") -->
+        <section id="tab-suggestions" class="tab-content hidden">
+            <!-- Suggestions Panel -->
+            <section id="suggestions-panel" class="suggestions-panel">
+                <h2 class="suggestions-title">suggestions</h2>
+                <div id="inbox-container" class="inbox-container">
+                    <!-- Suggestions will be rendered here -->
+                </div>
+                <div id="inbox-empty" class="inbox-empty hidden">
+                    <p>no suggestions</p>
+                </div>
+            </section>
+        </section>
+
+        <!-- Tab Content: Admin (visible when authenticated, tab="admin") -->
+        <section id="tab-admin" class="tab-content hidden">
+            <!-- Playlist Settings Panel -->
+            <section class="admin-panel">
+                <h2 class="admin-panel-title">playlist settings</h2>
+                <div class="playlist-settings">
+                    <input 
+                        type="text" 
+                        id="playlist-url-input" 
+                        placeholder="youtube playlist or video url"
+                        class="playlist-url-input"
+                    >
+                    <button id="playlist-save" class="playlist-save-button">save playlist</button>
+                </div>
+            </section>
+
+            <!-- Letterboxd Settings Panel -->
+            <section class="admin-panel">
+                <h2 class="admin-panel-title">letterboxd</h2>
+                <div class="letterboxd-settings">
+                    <input 
+                        type="text" 
+                        id="letterboxd-url-input" 
+                        placeholder="letterboxd user url (e.g., https://letterboxd.com/username/)"
+                        class="letterboxd-url-input"
+                    >
+                    <button id="letterboxd-fetch" class="letterboxd-fetch-button">fetch reviews</button>
+                    <div id="letterboxd-reviews-container" class="letterboxd-reviews-container hidden">
+                        <h3 class="letterboxd-reviews-title">select reviews to display</h3>
+                        <div id="letterboxd-reviews-list" class="letterboxd-reviews-list">
+                            <!-- Reviews will be rendered here -->
+                        </div>
+                        <button id="letterboxd-save-selection" class="letterboxd-save-button">save selection</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Account Settings Panel -->
+            <section class="admin-panel">
+                <h2 class="admin-panel-title">account settings</h2>
+                <div class="account-settings">
+                    <a href="https://supabase.com/dashboard/project/hyxobyxeeayuorzldyuy/auth/users" target="_blank" class="password-change-link">change password in supabase</a>
+                </div>
+            </section>
+        </section>
+
+        <!-- Write Panel (sticky, shown in feed tab when authenticated) -->
+        <section id="write-panel" class="write-panel write-panel-sticky hidden">
+            <textarea 
+                id="post-content" 
+                placeholder="write something..."
+                rows="4"
+            ></textarea>
+            <div class="write-actions">
+                <div class="write-tag-section">
+                    <input 
+                        type="text" 
+                        id="post-tag" 
+                        placeholder="#tag"
+                        class="post-tag-input"
+                        maxlength="10"
+                    >
+                    <div id="tag-suggestions" class="tag-suggestions"></div>
+                </div>
+                <button id="post-submit">post</button>
             </div>
         </section>
 
-        <!-- Suggest Panel (visible only when not authenticated) -->
-        <section id="suggest-panel" class="suggest-panel">
+        <!-- Suggest Panel (sticky, shown when not authenticated) -->
+        <section id="suggest-panel" class="suggest-panel suggest-panel-sticky">
             <textarea 
                 id="suggest-content" 
                 placeholder="suggest something..."

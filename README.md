@@ -79,6 +79,8 @@ const CONFIG = {
 - Posts appear immediately, newest first
 - Click **delete** on any post (when signed in) to remove it
 - Anyone can submit suggestions (you approve them when signed in)
+- Click the heart icon (♡) to like posts (one like per user per post)
+- **Letterboxd Integration:** In the admin tab, enter a Letterboxd profile URL to fetch and display film reviews in your feed
 
 ---
 
@@ -108,13 +110,24 @@ icon-512.png         — app icon (512x512)
 1. Look for the install prompt in your browser
 2. Or use browser menu → "Install App" / "Add to Home Screen"
 
-**Note:** You'll need to create `icon-192.png` and `icon-512.png` files (192x192 and 512x512 pixel PNG images) for the app icons. You can use any image editor or online tool to create these.
+**Note:** You'll need to create icon files (192x192 and 512x512 pixel PNG images) for the app icons. Update `manifest.json` and `index.html` with your icon filenames.
+
+## Features
+
+- **Real-time updates:** Posts and suggestions update automatically without page refresh
+- **Likes:** Users can like posts (one like per user per post, tracked in browser)
+- **Tags:** Add tags to posts for organization
+- **Suggestions:** Public users can submit suggestions for approval
+- **Letterboxd Integration:** Fetch and display film reviews from Letterboxd profiles
+- **Playlist:** Background music/playlist support (YouTube, Spotify, SoundCloud)
+- **PWA:** Install as a Progressive Web App on mobile devices
 
 ## Security
 
 ✅ **Secure:** Your Supabase anon key is safe to expose (designed for client-side use)  
 ✅ **Protected:** Row Level Security (RLS) ensures only authenticated users can write  
 ✅ **Managed:** Password authentication is handled securely by Supabase  
+✅ **Likes Security:** Secure database function prevents public users from modifying post data (only likes column can be updated)  
 
 ## Troubleshooting
 
