@@ -2145,26 +2145,12 @@ async function handleCreatePost() {
     
     // Remove fullscreen mode when submitting
     if (elements.writePanel) {
-        // Restore scroll position
         const scrollY = elements.writePanel._savedScrollY || 0;
         elements.writePanel.classList.remove('write-panel-fullscreen');
-        // Remove touchmove prevention first
-        if (elements.writePanel._preventScrollHandler) {
-            document.removeEventListener('touchmove', elements.writePanel._preventScrollHandler);
-            elements.writePanel._preventScrollHandler = null;
-        }
-        // Clear body styles using removeProperty to ensure they're fully removed
-        document.body.style.removeProperty('overflow');
-        document.body.style.removeProperty('position');
-        document.body.style.removeProperty('width');
-        document.body.style.removeProperty('top');
-        // Restore scroll position after DOM updates - use double RAF for mobile reliability
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                window.scrollTo(0, scrollY);
-                elements.writePanel._savedScrollY = null;
-            });
-        });
+        document.documentElement.style.overflow = '';
+        document.body.style.overflow = '';
+        window.scrollTo(0, scrollY);
+        elements.writePanel._savedScrollY = null;
     }
     
     const newPost = await createPost(content, tag);
@@ -2285,26 +2271,12 @@ async function handleCreateSuggestion() {
     
     // Remove fullscreen mode when submitting
     if (elements.suggestPanel) {
-        // Restore scroll position
         const scrollY = elements.suggestPanel._savedScrollY || 0;
         elements.suggestPanel.classList.remove('suggest-panel-fullscreen');
-        // Remove touchmove prevention first
-        if (elements.suggestPanel._preventScrollHandler) {
-            document.removeEventListener('touchmove', elements.suggestPanel._preventScrollHandler);
-            elements.suggestPanel._preventScrollHandler = null;
-        }
-        // Clear body styles using removeProperty to ensure they're fully removed
-        document.body.style.removeProperty('overflow');
-        document.body.style.removeProperty('position');
-        document.body.style.removeProperty('width');
-        document.body.style.removeProperty('top');
-        // Restore scroll position after DOM updates - use double RAF for mobile reliability
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                window.scrollTo(0, scrollY);
-                elements.suggestPanel._savedScrollY = null;
-            });
-        });
+        document.documentElement.style.overflow = '';
+        document.body.style.overflow = '';
+        window.scrollTo(0, scrollY);
+        elements.suggestPanel._savedScrollY = null;
     }
     
     const newSuggestion = await createSuggestion(content);
@@ -2653,23 +2625,11 @@ function setupEventListeners() {
                 // #region agent log
                 fetch('http://127.0.0.1:7242/ingest/9c27437d-89e3-443e-a630-d9c29e767acb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app.js:2619',message:'After adding fullscreen class',data:{hasFullscreenClass:elements.writePanel.classList.contains('write-panel-fullscreen')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
                 // #endregion
-                // Prevent background scrolling - store scroll position and lock it
+                // Prevent background scrolling - simple approach
                 const scrollY = window.scrollY;
-                elements.writePanel._savedScrollY = scrollY; // Store for restoration
+                elements.writePanel._savedScrollY = scrollY;
+                document.documentElement.style.overflow = 'hidden';
                 document.body.style.overflow = 'hidden';
-                document.body.style.position = 'fixed';
-                document.body.style.width = '100%';
-                document.body.style.top = `-${scrollY}px`;
-                
-                // Prevent touchmove events on document/body to prevent scrolling
-                const preventScroll = (e) => {
-                    // Only allow scrolling within textareas
-                    if (e.target !== elements.postContent && e.target !== elements.postTag) {
-                        e.preventDefault();
-                    }
-                };
-                document.addEventListener('touchmove', preventScroll, { passive: false });
-                elements.writePanel._preventScrollHandler = preventScroll;
                 
                 // Use visual viewport height to account for keyboard
                 const updateHeight = () => {
@@ -2710,25 +2670,13 @@ function setupEventListeners() {
                         }
                         // Restore scroll position
                         const scrollY = elements.writePanel._savedScrollY || 0;
-                        // Remove touchmove prevention first
-                        if (elements.writePanel._preventScrollHandler) {
-                            document.removeEventListener('touchmove', elements.writePanel._preventScrollHandler);
-                            elements.writePanel._preventScrollHandler = null;
-                        }
-                        // Clear body styles using removeProperty to ensure they're fully removed
-                        document.body.style.removeProperty('overflow');
-                        document.body.style.removeProperty('position');
-                        document.body.style.removeProperty('width');
-                        document.body.style.removeProperty('top');
+                        document.documentElement.style.overflow = '';
+                        document.body.style.overflow = '';
                         elements.writePanel.style.removeProperty('height');
                         elements.writePanel.style.removeProperty('top');
-                        // Restore scroll position after DOM updates - use double RAF for mobile reliability
-                        requestAnimationFrame(() => {
-                            requestAnimationFrame(() => {
-                                window.scrollTo(0, scrollY);
-                                elements.writePanel._savedScrollY = null;
-                            });
-                        });
+                        // Restore scroll position
+                        window.scrollTo(0, scrollY);
+                        elements.writePanel._savedScrollY = null;
                         // Restore sticky class when exiting fullscreen
                         if (isAuthenticated) {
                             elements.writePanel.classList.add('write-panel-sticky');
@@ -2780,25 +2728,13 @@ function setupEventListeners() {
                     // Restore scroll position
                     const scrollY = elements.writePanel._savedScrollY || 0;
                     elements.writePanel.classList.remove('write-panel-fullscreen');
-                    // Remove touchmove prevention first
-                    if (elements.writePanel._preventScrollHandler) {
-                        document.removeEventListener('touchmove', elements.writePanel._preventScrollHandler);
-                        elements.writePanel._preventScrollHandler = null;
-                    }
-                    // Clear body styles using removeProperty to ensure they're fully removed
-                    document.body.style.removeProperty('overflow');
-                    document.body.style.removeProperty('position');
-                    document.body.style.removeProperty('width');
-                    document.body.style.removeProperty('top');
+                    document.documentElement.style.overflow = '';
+                    document.body.style.overflow = '';
                     elements.writePanel.style.removeProperty('height');
                     elements.writePanel.style.removeProperty('top');
-                    // Restore scroll position after DOM updates - use double RAF for mobile reliability
-                    requestAnimationFrame(() => {
-                        requestAnimationFrame(() => {
-                            window.scrollTo(0, scrollY);
-                            elements.writePanel._savedScrollY = null;
-                        });
-                    });
+                    // Restore scroll position
+                    window.scrollTo(0, scrollY);
+                    elements.writePanel._savedScrollY = null;
                 }
             }, 200);
         });
@@ -2809,23 +2745,11 @@ function setupEventListeners() {
             if (window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
                     if (!elements.writePanel.classList.contains('write-panel-fullscreen')) {
                         elements.writePanel.classList.add('write-panel-fullscreen');
-                        // Prevent background scrolling - store scroll position and lock it
+                        // Prevent background scrolling - simple approach
                         const scrollY = window.scrollY;
-                        elements.writePanel._savedScrollY = scrollY; // Store for restoration
+                        elements.writePanel._savedScrollY = scrollY;
+                        document.documentElement.style.overflow = 'hidden';
                         document.body.style.overflow = 'hidden';
-                        document.body.style.position = 'fixed';
-                        document.body.style.width = '100%';
-                        document.body.style.top = `-${scrollY}px`;
-                        
-                        // Prevent touchmove events on document/body to prevent scrolling
-                        const preventScroll = (e) => {
-                            // Only allow scrolling within textareas
-                            if (e.target !== elements.postContent && e.target !== elements.postTag) {
-                                e.preventDefault();
-                            }
-                        };
-                        document.addEventListener('touchmove', preventScroll, { passive: false });
-                        elements.writePanel._preventScrollHandler = preventScroll;
                     
                     // Use visual viewport height to account for keyboard
                     const updateHeight = () => {
@@ -2919,33 +2843,16 @@ function setupEventListeners() {
     // Close button handler for suggest panel
     if (elements.suggestPanelClose) {
         elements.suggestPanelClose.addEventListener('click', () => {
-            // Restore scroll position
             const scrollY = elements.suggestPanel._savedScrollY || 0;
             elements.suggestPanel.classList.remove('suggest-panel-fullscreen');
-            // Restore sticky class
             elements.suggestPanel.classList.add('suggest-panel-sticky');
-            // Remove touchmove prevention first
-            if (elements.suggestPanel._preventScrollHandler) {
-                document.removeEventListener('touchmove', elements.suggestPanel._preventScrollHandler);
-                elements.suggestPanel._preventScrollHandler = null;
-            }
-            // Clear body styles using removeProperty to ensure they're fully removed
-            document.body.style.removeProperty('overflow');
-            document.body.style.removeProperty('position');
-            document.body.style.removeProperty('width');
-            document.body.style.removeProperty('top');
+            document.documentElement.style.overflow = '';
+            document.body.style.overflow = '';
             elements.suggestPanel.style.removeProperty('height');
             elements.suggestPanel.style.removeProperty('top');
-            // Restore scroll position after DOM updates - use double RAF for mobile reliability
-            requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                    window.scrollTo(0, scrollY);
-                    elements.suggestPanel._savedScrollY = null;
-                });
-            });
-            // Clear input text when closing
+            window.scrollTo(0, scrollY);
+            elements.suggestPanel._savedScrollY = null;
             elements.suggestContent.value = '';
-            // Blur any focused inputs
             if (document.activeElement === elements.suggestContent) {
                 elements.suggestContent.blur();
             }
@@ -2967,22 +2874,11 @@ function setupEventListeners() {
                 // #region agent log
                 fetch('http://127.0.0.1:7242/ingest/9c27437d-89e3-443e-a630-d9c29e767acb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app.js:2886',message:'After adding fullscreen class for suggest',data:{hasFullscreenClass:elements.suggestPanel.classList.contains('suggest-panel-fullscreen')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
                 // #endregion
-                // Prevent background scrolling - store scroll position and lock it
+                // Prevent background scrolling - simple approach
                 const scrollY = window.scrollY;
+                elements.suggestPanel._savedScrollY = scrollY;
+                document.documentElement.style.overflow = 'hidden';
                 document.body.style.overflow = 'hidden';
-                document.body.style.position = 'fixed';
-                document.body.style.width = '100%';
-                document.body.style.top = `-${scrollY}px`;
-                
-                // Prevent touchmove events on document/body to prevent scrolling
-                const preventScroll = (e) => {
-                    // Only allow scrolling within textareas
-                    if (e.target !== elements.suggestContent) {
-                        e.preventDefault();
-                    }
-                };
-                document.addEventListener('touchmove', preventScroll, { passive: false });
-                elements.suggestPanel._preventScrollHandler = preventScroll;
                 
                 // Use visual viewport height to account for keyboard
                 const updateHeight = () => {
@@ -3023,25 +2919,12 @@ function setupEventListeners() {
                         }
                         // Restore scroll position
                         const scrollY = elements.suggestPanel._savedScrollY || 0;
-                        // Remove touchmove prevention first
-                        if (elements.suggestPanel._preventScrollHandler) {
-                            document.removeEventListener('touchmove', elements.suggestPanel._preventScrollHandler);
-                            elements.suggestPanel._preventScrollHandler = null;
-                        }
-                        // Clear body styles using removeProperty to ensure they're fully removed
-                        document.body.style.removeProperty('overflow');
-                        document.body.style.removeProperty('position');
-                        document.body.style.removeProperty('width');
-                        document.body.style.removeProperty('top');
+                        document.documentElement.style.overflow = '';
+                        document.body.style.overflow = '';
                         elements.suggestPanel.style.removeProperty('height');
                         elements.suggestPanel.style.removeProperty('top');
-                        // Restore scroll position after DOM updates - use double RAF for mobile reliability
-                        requestAnimationFrame(() => {
-                            requestAnimationFrame(() => {
-                                window.scrollTo(0, scrollY);
-                                elements.suggestPanel._savedScrollY = null;
-                            });
-                        });
+                        window.scrollTo(0, scrollY);
+                        elements.suggestPanel._savedScrollY = null;
                         heightUpdateHandler = null;
                         observer.disconnect();
                     }
@@ -3089,25 +2972,12 @@ function setupEventListeners() {
                     // Restore scroll position
                     const scrollY = elements.suggestPanel._savedScrollY || 0;
                     elements.suggestPanel.classList.remove('suggest-panel-fullscreen');
-                    // Remove touchmove prevention first
-                    if (elements.suggestPanel._preventScrollHandler) {
-                        document.removeEventListener('touchmove', elements.suggestPanel._preventScrollHandler);
-                        elements.suggestPanel._preventScrollHandler = null;
-                    }
-                    // Clear body styles using removeProperty to ensure they're fully removed
-                    document.body.style.removeProperty('overflow');
-                    document.body.style.removeProperty('position');
-                    document.body.style.removeProperty('width');
-                    document.body.style.removeProperty('top');
+                    document.documentElement.style.overflow = '';
+                    document.body.style.overflow = '';
                     elements.suggestPanel.style.removeProperty('height');
                     elements.suggestPanel.style.removeProperty('top');
-                    // Restore scroll position after DOM updates - use double RAF for mobile reliability
-                    requestAnimationFrame(() => {
-                        requestAnimationFrame(() => {
-                            window.scrollTo(0, scrollY);
-                            elements.suggestPanel._savedScrollY = null;
-                        });
-                    });
+                    window.scrollTo(0, scrollY);
+                    elements.suggestPanel._savedScrollY = null;
                 }
             }, 200);
         });
@@ -3130,22 +3000,11 @@ function setupEventListeners() {
                 // Remove sticky positioning first to avoid glitchy transition
                 elements.suggestPanel.classList.remove('suggest-panel-sticky');
                 elements.suggestPanel.classList.add('suggest-panel-fullscreen');
-                // Prevent background scrolling - store scroll position and lock it
+                // Prevent background scrolling - simple approach
                 const scrollY = window.scrollY;
+                elements.suggestPanel._savedScrollY = scrollY;
+                document.documentElement.style.overflow = 'hidden';
                 document.body.style.overflow = 'hidden';
-                document.body.style.position = 'fixed';
-                document.body.style.width = '100%';
-                document.body.style.top = `-${scrollY}px`;
-                
-                // Prevent touchmove events on document/body to prevent scrolling
-                const preventScroll = (e) => {
-                    // Only allow scrolling within textareas
-                    if (e.target !== elements.suggestContent) {
-                        e.preventDefault();
-                    }
-                };
-                document.addEventListener('touchmove', preventScroll, { passive: false });
-                elements.suggestPanel._preventScrollHandler = preventScroll;
                 
                 // Use visual viewport height to account for keyboard
                 const updateHeight = () => {
