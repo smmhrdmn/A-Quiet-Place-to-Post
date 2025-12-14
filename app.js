@@ -50,10 +50,12 @@ const elements = {
     passwordInput: document.getElementById('password-input'),
     authSubmit: document.getElementById('auth-submit'),
     writePanel: document.getElementById('write-panel'),
+    writePanelClose: document.getElementById('write-panel-close'),
     postContent: document.getElementById('post-content'),
     postTag: document.getElementById('post-tag'),
     postSubmit: document.getElementById('post-submit'),
     suggestPanel: document.getElementById('suggest-panel'),
+    suggestPanelClose: document.getElementById('suggest-panel-close'),
     suggestContent: document.getElementById('suggest-content'),
     suggestSubmit: document.getElementById('suggest-submit'),
     randomWordButton: document.getElementById('random-word'),
@@ -1846,7 +1848,8 @@ async function authenticate() {
             hideAuthPanel();
             updateUIForAuth();
             switchTab('feed'); // Ensure feed tab is active
-            elements.postContent.focus();
+            // Don't auto-focus on login to prevent fullscreen from opening
+            // elements.postContent.focus();
             
             // Reload data
             const feedData = await fetchData();
@@ -1955,8 +1958,9 @@ function setupRealtimeSubscriptions() {
         .on('postgres_changes',
             { event: 'DELETE', schema: 'public', table: 'suggestions' },
             (payload) => {
-                // Remove deleted suggestion
-                suggestions = suggestions.filter(s => s.id !== payload.old.id);
+                // Remove deleted suggestion - convert both to strings for consistent comparison
+                const deletedId = String(payload.old.id);
+                suggestions = suggestions.filter(s => String(s.id) !== deletedId);
                 if (isAuthenticated) {
                     renderInbox();
                 }
@@ -2139,6 +2143,12 @@ async function handleCreatePost() {
     elements.postSubmit.textContent = '...';
     elements.postSubmit.disabled = true;
     
+    // Remove fullscreen mode when submitting
+    if (elements.writePanel) {
+        elements.writePanel.classList.remove('write-panel-fullscreen');
+        document.body.style.overflow = '';
+    }
+    
     const newPost = await createPost(content, tag);
     
     if (newPost) {
@@ -2255,6 +2265,12 @@ async function handleCreateSuggestion() {
     elements.suggestSubmit.textContent = '...';
     elements.suggestSubmit.disabled = true;
     
+    // Remove fullscreen mode when submitting
+    if (elements.suggestPanel) {
+        elements.suggestPanel.classList.remove('suggest-panel-fullscreen');
+        document.body.style.overflow = '';
+    }
+    
     const newSuggestion = await createSuggestion(content);
     
     if (newSuggestion) {
@@ -2315,15 +2331,16 @@ async function handleApproveSuggestion(e) {
     const newPost = await approveSuggestion(suggestionId, content);
     
     if (newPost) {
-        // Update local state
+        // Update local state - convert both to strings for consistent comparison
         posts.unshift(newPost);
-        suggestions = suggestions.filter(s => s.id !== suggestionId);
+        const suggestionIdStr = String(suggestionId);
+        suggestions = suggestions.filter(s => String(s.id) !== suggestionIdStr);
         renderPosts();
         renderInbox();
         
         // Update tag suggestions (though suggestion tag is excluded, this ensures consistency)
         updateTagSuggestions();
-        // Real-time subscription will handle the update automatically
+        // Real-time subscription will also handle the update, but we update immediately for better UX
     }
 }
 
@@ -2335,11 +2352,12 @@ async function handleDeleteSuggestion(e) {
     const success = await deleteSuggestion(suggestionId);
     
     if (success) {
-        // Update local state
-        suggestions = suggestions.filter(s => s.id !== suggestionId);
+        // Update local state - convert both to strings for consistent comparison
+        const suggestionIdStr = String(suggestionId);
+        suggestions = suggestions.filter(s => String(s.id) !== suggestionIdStr);
         renderInbox();
         
-        // Real-time subscription will handle the update, so no need to re-fetch
+        // Real-time subscription will also handle the update, but we update immediately for better UX
     }
 }
 
@@ -2557,6 +2575,112 @@ function setupEventListeners() {
         }
     });
     
+    // Close button handler for write panel
+    if (elements.writePanelClose) {
+        elements.writePanelClose.addEventListener('click', () => {
+            elements.writePanel.classList.remove('write-panel-fullscreen');
+            document.body.style.overflow = '';
+            if (elements.writePanel.style.height) {
+                elements.writePanel.style.height = '';
+            }
+            // Blur any focused inputs
+            if (document.activeElement === elements.postContent) {
+                elements.postContent.blur();
+            }
+            if (document.activeElement === elements.postTag) {
+                elements.postTag.blur();
+            }
+        });
+    }
+    
+    // Fullscreen panel on mobile when input is focused
+    if (elements.postContent && elements.writePanel) {
+        const enterFullscreen = () => {
+            if (window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+                elements.writePanel.classList.add('write-panel-fullscreen');
+                // Prevent background scrolling
+                document.body.style.overflow = 'hidden';
+                // Use visual viewport height if available (accounts for keyboard)
+                if (window.visualViewport) {
+                    const updateHeight = () => {
+                        if (elements.writePanel.classList.contains('write-panel-fullscreen')) {
+                            elements.writePanel.style.height = `${window.visualViewport.height}px`;
+                        }
+                    };
+                    updateHeight();
+                    window.visualViewport.addEventListener('resize', updateHeight);
+                    // Clean up listener when panel exits fullscreen
+                    const observer = new MutationObserver(() => {
+                        if (!elements.writePanel.classList.contains('write-panel-fullscreen')) {
+                            window.visualViewport.removeEventListener('resize', updateHeight);
+                            document.body.style.overflow = '';
+                            observer.disconnect();
+                        }
+                    });
+                    observer.observe(elements.writePanel, { attributes: true, attributeFilter: ['class'] });
+                }
+                // Scroll to top to ensure panel is visible
+                window.scrollTo(0, 0);
+            }
+        };
+        
+        elements.postContent.addEventListener('focus', enterFullscreen);
+        elements.postContent.addEventListener('touchstart', enterFullscreen);
+        
+        elements.postContent.addEventListener('blur', () => {
+            // Delay to allow submit button clicks to work
+            setTimeout(() => {
+                if (document.activeElement !== elements.postTag) {
+                    elements.writePanel.classList.remove('write-panel-fullscreen');
+                    document.body.style.overflow = '';
+                    if (elements.writePanel.style.height) {
+                        elements.writePanel.style.height = '';
+                    }
+                }
+            }, 200);
+        });
+    }
+    
+    if (elements.postTag && elements.writePanel) {
+        const enterFullscreen = () => {
+            if (window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+                if (!elements.writePanel.classList.contains('write-panel-fullscreen')) {
+                    elements.writePanel.classList.add('write-panel-fullscreen');
+                    // Prevent background scrolling
+                    document.body.style.overflow = 'hidden';
+                    // Use visual viewport height if available (accounts for keyboard)
+                    if (window.visualViewport) {
+                        const updateHeight = () => {
+                            if (elements.writePanel.classList.contains('write-panel-fullscreen')) {
+                                elements.writePanel.style.height = `${window.visualViewport.height}px`;
+                            }
+                        };
+                        updateHeight();
+                        window.visualViewport.addEventListener('resize', updateHeight);
+                    }
+                    // Scroll to top to ensure panel is visible
+                    window.scrollTo(0, 0);
+                }
+            }
+        };
+        
+        elements.postTag.addEventListener('focus', enterFullscreen);
+        elements.postTag.addEventListener('touchstart', enterFullscreen);
+        
+        elements.postTag.addEventListener('blur', () => {
+            // Only remove if postContent is also not focused
+            setTimeout(() => {
+                if (document.activeElement !== elements.postContent) {
+                    elements.writePanel.classList.remove('write-panel-fullscreen');
+                    document.body.style.overflow = '';
+                    if (elements.writePanel.style.height) {
+                        elements.writePanel.style.height = '';
+                    }
+                }
+            }, 200);
+        });
+    }
+    
     // Limit input to 10 characters (excluding #) and resize dynamically
     if (elements.postTag) {
         elements.postTag.addEventListener('input', (e) => {
@@ -2587,12 +2711,119 @@ function setupEventListeners() {
         if (e.key === 'Enter' && e.metaKey) handleCreateSuggestion();
     });
     
+    // Close button handler for suggest panel
+    if (elements.suggestPanelClose) {
+        elements.suggestPanelClose.addEventListener('click', () => {
+            elements.suggestPanel.classList.remove('suggest-panel-fullscreen');
+            document.body.style.overflow = '';
+            if (elements.suggestPanel.style.height) {
+                elements.suggestPanel.style.height = '';
+            }
+            // Blur any focused inputs
+            if (document.activeElement === elements.suggestContent) {
+                elements.suggestContent.blur();
+            }
+        });
+    }
+    
+    // Fullscreen panel on mobile when input is focused
+    if (elements.suggestContent && elements.suggestPanel) {
+        const enterFullscreen = () => {
+            if (window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+                elements.suggestPanel.classList.add('suggest-panel-fullscreen');
+                // Prevent background scrolling
+                document.body.style.overflow = 'hidden';
+                // Use visual viewport height if available (accounts for keyboard)
+                if (window.visualViewport) {
+                    const updateHeight = () => {
+                        if (elements.suggestPanel.classList.contains('suggest-panel-fullscreen')) {
+                            elements.suggestPanel.style.height = `${window.visualViewport.height}px`;
+                        }
+                    };
+                    updateHeight();
+                    window.visualViewport.addEventListener('resize', updateHeight);
+                    // Clean up listener when panel exits fullscreen
+                    const observer = new MutationObserver(() => {
+                        if (!elements.suggestPanel.classList.contains('suggest-panel-fullscreen')) {
+                            window.visualViewport.removeEventListener('resize', updateHeight);
+                            document.body.style.overflow = '';
+                            observer.disconnect();
+                        }
+                    });
+                    observer.observe(elements.suggestPanel, { attributes: true, attributeFilter: ['class'] });
+                }
+                // Scroll to top to ensure panel is visible
+                window.scrollTo(0, 0);
+            }
+        };
+        
+        elements.suggestContent.addEventListener('focus', enterFullscreen);
+        elements.suggestContent.addEventListener('touchstart', enterFullscreen);
+        
+        elements.suggestContent.addEventListener('blur', () => {
+            // Delay to allow submit button clicks to work
+            setTimeout(() => {
+                // Only exit fullscreen if the active element is not within the suggest panel
+                const activeElement = document.activeElement;
+                const isWithinPanel = activeElement && elements.suggestPanel.contains(activeElement);
+                
+                // Don't exit fullscreen if user clicked a button within the panel
+                if (!isWithinPanel && elements.suggestPanel.classList.contains('suggest-panel-fullscreen')) {
+                    elements.suggestPanel.classList.remove('suggest-panel-fullscreen');
+                    document.body.style.overflow = '';
+                    if (elements.suggestPanel.style.height) {
+                        elements.suggestPanel.style.height = '';
+                    }
+                }
+            }, 200);
+        });
+    }
+    
     // Random word
-    elements.randomWordButton.addEventListener('click', () => {
+    elements.randomWordButton.addEventListener('click', (e) => {
+        e.preventDefault();
         const word = getRandomWord();
         const currentText = elements.suggestContent.value.trim();
-        elements.suggestContent.value = currentText ? `${currentText} ${word}` : word;
-        elements.suggestContent.focus();
+        const newText = currentText ? `${currentText} ${word}` : word;
+        elements.suggestContent.value = newText;
+        
+        // Enter fullscreen if on mobile and not already in fullscreen
+        if (window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+            if (!elements.suggestPanel.classList.contains('suggest-panel-fullscreen')) {
+                elements.suggestPanel.classList.add('suggest-panel-fullscreen');
+                // Prevent background scrolling
+                document.body.style.overflow = 'hidden';
+                // Use visual viewport height if available (accounts for keyboard)
+                if (window.visualViewport) {
+                    const updateHeight = () => {
+                        if (elements.suggestPanel.classList.contains('suggest-panel-fullscreen')) {
+                            elements.suggestPanel.style.height = `${window.visualViewport.height}px`;
+                        }
+                    };
+                    updateHeight();
+                    window.visualViewport.addEventListener('resize', updateHeight);
+                    // Clean up listener when panel exits fullscreen
+                    const observer = new MutationObserver(() => {
+                        if (!elements.suggestPanel.classList.contains('suggest-panel-fullscreen')) {
+                            window.visualViewport.removeEventListener('resize', updateHeight);
+                            document.body.style.overflow = '';
+                            observer.disconnect();
+                        }
+                    });
+                    observer.observe(elements.suggestPanel, { attributes: true, attributeFilter: ['class'] });
+                }
+                // Scroll to top to ensure panel is visible
+                window.scrollTo(0, 0);
+            }
+        }
+        
+        // Use setTimeout to ensure fullscreen is set before focusing
+        setTimeout(() => {
+            elements.suggestContent.focus();
+            // Set cursor position to the end of the text
+            const textLength = elements.suggestContent.value.length;
+            elements.suggestContent.setSelectionRange(textLength, textLength);
+        }, 0);
     });
     
     // Playlist save

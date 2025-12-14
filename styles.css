@@ -380,6 +380,7 @@ nav {
 
 /* Write Panel */
 .write-panel {
+    position: relative;
     margin-bottom: var(--spacing-lg);
     padding: var(--spacing);
     padding-top: 1.5rem;
@@ -401,6 +402,33 @@ nav {
     background: rgba(255, 245, 250, 0.95) !important;
     z-index: 100 !important;
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05) !important;
+    box-sizing: border-box !important;
+    transition: all 0.3s ease !important;
+}
+
+.write-panel-fullscreen,
+.write-panel.write-panel-fullscreen {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    transform: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100vh !important;
+    height: 100dvh !important; /* Dynamic viewport height for mobile */
+    max-height: 100vh !important;
+    max-height: 100dvh !important;
+    margin: 0 !important;
+    padding: calc(1rem + env(safe-area-inset-top)) 1rem calc(1rem + env(safe-area-inset-bottom)) 1rem !important;
+    border: none !important;
+    border-top: 1px solid var(--rule) !important;
+    background: rgba(255, 245, 250, 0.95) !important;
+    z-index: 1000 !important;
+    box-shadow: none !important;
+    display: flex !important;
+    flex-direction: column !important;
     box-sizing: border-box !important;
 }
 
@@ -429,6 +457,49 @@ nav {
     overflow-y: auto;
 }
 
+.write-panel-fullscreen textarea {
+    flex: 1 !important;
+    min-height: auto !important;
+    max-height: none !important;
+    margin-bottom: 1rem !important;
+    font-size: 1.2rem !important;
+    line-height: 1.8 !important;
+    padding: 0.5rem 0 !important;
+    overflow-y: auto !important;
+}
+
+.panel-close-button {
+    display: none;
+    position: relative;
+    font-family: var(--font-mono);
+    font-size: 1.5rem;
+    font-weight: 300;
+    line-height: 1;
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem 0;
+    margin-bottom: 0.5rem;
+    width: 100%;
+    text-align: right;
+    align-items: center;
+    justify-content: flex-end;
+    transition: color 0.2s ease, opacity 0.2s ease;
+    z-index: 1001;
+    opacity: 0.7;
+}
+
+.panel-close-button:hover {
+    color: var(--text);
+    opacity: 1;
+}
+
+.write-panel-fullscreen .panel-close-button,
+.suggest-panel-fullscreen .panel-close-button {
+    display: flex !important;
+}
+
 .write-panel textarea::placeholder {
     color: var(--text-muted);
     font-style: italic;
@@ -454,6 +525,16 @@ nav {
 .write-panel-sticky .write-actions button {
     font-size: 0.7rem;
     padding: 0.15rem 0;
+}
+
+.write-panel-fullscreen .write-actions {
+    margin-top: auto !important;
+    flex-shrink: 0 !important;
+}
+
+.write-panel-fullscreen .write-actions button {
+    font-size: 0.75rem !important;
+    padding: 0.25rem 0 !important;
 }
 
 .write-actions button {
@@ -499,6 +580,7 @@ nav {
 
 /* Suggest Panel */
 .suggest-panel {
+    position: relative;
     margin-bottom: var(--spacing-lg);
     padding: var(--spacing);
     padding-top: 1.5rem;
@@ -520,6 +602,33 @@ nav {
     background: rgba(255, 245, 250, 0.95) !important;
     z-index: 100 !important;
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05) !important;
+    box-sizing: border-box !important;
+    transition: all 0.3s ease !important;
+}
+
+.suggest-panel-fullscreen,
+.suggest-panel.suggest-panel-fullscreen {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    transform: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100vh !important;
+    height: 100dvh !important; /* Dynamic viewport height for mobile */
+    max-height: 100vh !important;
+    max-height: 100dvh !important;
+    margin: 0 !important;
+    padding: calc(1rem + env(safe-area-inset-top)) 1rem calc(1rem + env(safe-area-inset-bottom)) 1rem !important;
+    border: none !important;
+    border-top: 1px solid var(--rule) !important;
+    background: rgba(255, 245, 250, 0.95) !important;
+    z-index: 1000 !important;
+    box-shadow: none !important;
+    display: flex !important;
+    flex-direction: column !important;
     box-sizing: border-box !important;
 }
 
@@ -548,6 +657,17 @@ nav {
     overflow-y: auto;
 }
 
+.suggest-panel-fullscreen textarea {
+    flex: 1 !important;
+    min-height: auto !important;
+    max-height: none !important;
+    margin-bottom: 1rem !important;
+    font-size: 1.2rem !important;
+    line-height: 1.8 !important;
+    padding: 0.5rem 0 !important;
+    overflow-y: auto !important;
+}
+
 .suggest-panel textarea::placeholder {
     color: var(--text-muted);
     font-style: italic;
@@ -566,6 +686,16 @@ nav {
 .suggest-panel-sticky .suggest-actions button {
     font-size: 0.7rem;
     padding: 0.15rem 0;
+}
+
+.suggest-panel-fullscreen .suggest-actions {
+    margin-top: auto !important;
+    flex-shrink: 0 !important;
+}
+
+.suggest-panel-fullscreen .suggest-actions button {
+    font-size: 0.75rem !important;
+    padding: 0.25rem 0 !important;
 }
 
 .suggest-actions button {
