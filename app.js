@@ -38,6 +38,34 @@ let letterboxdReviews = [];
 let letterboxdUrl = null;
 
 // ============================================
+// Scroll Prevention for Fullscreen Panels
+// ============================================
+
+let scrollPreventionHandler = null;
+
+function enableScrollPrevention() {
+    if (scrollPreventionHandler) return; // Already enabled
+    
+    scrollPreventionHandler = function(e) {
+        // Allow scrolling only within textareas
+        const target = e.target;
+        if (target.tagName === 'TEXTAREA') {
+            return; // Allow textarea scrolling
+        }
+        e.preventDefault();
+    };
+    
+    document.addEventListener('touchmove', scrollPreventionHandler, { passive: false });
+}
+
+function disableScrollPrevention() {
+    if (scrollPreventionHandler) {
+        document.removeEventListener('touchmove', scrollPreventionHandler);
+        scrollPreventionHandler = null;
+    }
+}
+
+// ============================================
 // DOM Elements
 // ============================================
 
@@ -2152,7 +2180,7 @@ async function handleCreatePost() {
         document.documentElement.classList.remove('fullscreen-open');
         document.body.classList.remove('fullscreen-open');
         document.body.style.top = '';
-        if (elements.fullscreenOverlay) elements.fullscreenOverlay.classList.remove('active');
+        disableScrollPrevention();
         window.scrollTo(0, scrollY);
         elements.writePanel._savedScrollY = null;
     }
@@ -2281,7 +2309,7 @@ async function handleCreateSuggestion() {
         document.documentElement.classList.remove('fullscreen-open');
         document.body.classList.remove('fullscreen-open');
         document.body.style.top = '';
-        if (elements.fullscreenOverlay) elements.fullscreenOverlay.classList.remove('active');
+        disableScrollPrevention();
         window.scrollTo(0, scrollY);
         elements.suggestPanel._savedScrollY = null;
     }
@@ -2603,7 +2631,7 @@ function setupEventListeners() {
             document.documentElement.classList.remove('fullscreen-open');
             document.body.classList.remove('fullscreen-open');
             document.body.style.top = '';
-            if (elements.fullscreenOverlay) elements.fullscreenOverlay.classList.remove('active');
+            disableScrollPrevention();
             elements.writePanel.style.removeProperty('height');
             elements.writePanel.style.removeProperty('top');
             window.scrollTo(0, scrollY);
@@ -2636,7 +2664,7 @@ function setupEventListeners() {
                 document.documentElement.classList.add('fullscreen-open');
                 document.body.classList.add('fullscreen-open');
                 document.body.style.top = `-${scrollY}px`;
-                if (elements.fullscreenOverlay) elements.fullscreenOverlay.classList.add('active');
+                enableScrollPrevention();
                 
                 // Use visual viewport height to account for keyboard
                 const updateHeight = () => {
@@ -2681,7 +2709,7 @@ function setupEventListeners() {
                         document.documentElement.classList.remove('fullscreen-open');
                         document.body.classList.remove('fullscreen-open');
                         document.body.style.top = '';
-                        if (elements.fullscreenOverlay) elements.fullscreenOverlay.classList.remove('active');
+                        disableScrollPrevention();
                         elements.writePanel.style.removeProperty('height');
                         elements.writePanel.style.removeProperty('top');
                         // Restore scroll position
@@ -2746,7 +2774,7 @@ function setupEventListeners() {
                     document.documentElement.classList.remove('fullscreen-open');
                     document.body.classList.remove('fullscreen-open');
                     document.body.style.top = '';
-                    if (elements.fullscreenOverlay) elements.fullscreenOverlay.classList.remove('active');
+                    disableScrollPrevention();
                     elements.writePanel.style.removeProperty('height');
                     elements.writePanel.style.removeProperty('top');
                     // Restore scroll position
@@ -2768,7 +2796,7 @@ function setupEventListeners() {
                         document.documentElement.classList.add('fullscreen-open');
                         document.body.classList.add('fullscreen-open');
                         document.body.style.top = `-${scrollY}px`;
-                        if (elements.fullscreenOverlay) elements.fullscreenOverlay.classList.add('active');
+                        enableScrollPrevention();
                     
                     // Use visual viewport height to account for keyboard
                     const updateHeight = () => {
@@ -2869,7 +2897,7 @@ function setupEventListeners() {
             document.documentElement.classList.remove('fullscreen-open');
             document.body.classList.remove('fullscreen-open');
             document.body.style.top = '';
-            if (elements.fullscreenOverlay) elements.fullscreenOverlay.classList.remove('active');
+            disableScrollPrevention();
             elements.suggestPanel.style.removeProperty('height');
             elements.suggestPanel.style.removeProperty('top');
             window.scrollTo(0, scrollY);
@@ -2902,7 +2930,7 @@ function setupEventListeners() {
                 document.documentElement.classList.add('fullscreen-open');
                 document.body.classList.add('fullscreen-open');
                 document.body.style.top = `-${scrollY}px`;
-                if (elements.fullscreenOverlay) elements.fullscreenOverlay.classList.add('active');
+                enableScrollPrevention();
                 
                 // Use visual viewport height to account for keyboard
                 const updateHeight = () => {
@@ -2949,7 +2977,7 @@ function setupEventListeners() {
                         document.documentElement.classList.remove('fullscreen-open');
                         document.body.classList.remove('fullscreen-open');
                         document.body.style.top = '';
-                        if (elements.fullscreenOverlay) elements.fullscreenOverlay.classList.remove('active');
+                        disableScrollPrevention();
                         elements.suggestPanel.style.removeProperty('height');
                         elements.suggestPanel.style.removeProperty('top');
                         window.scrollTo(0, scrollY);
@@ -3006,7 +3034,7 @@ function setupEventListeners() {
                     document.documentElement.classList.remove('fullscreen-open');
                     document.body.classList.remove('fullscreen-open');
                     document.body.style.top = '';
-                    if (elements.fullscreenOverlay) elements.fullscreenOverlay.classList.remove('active');
+                    disableScrollPrevention();
                     elements.suggestPanel.style.removeProperty('height');
                     elements.suggestPanel.style.removeProperty('top');
                     window.scrollTo(0, scrollY);
@@ -3039,7 +3067,7 @@ function setupEventListeners() {
                 document.documentElement.classList.add('fullscreen-open');
                 document.body.classList.add('fullscreen-open');
                 document.body.style.top = `-${scrollY}px`;
-                if (elements.fullscreenOverlay) elements.fullscreenOverlay.classList.add('active');
+                enableScrollPrevention();
                 
                 // Use visual viewport height to account for keyboard
                 const updateHeight = () => {
