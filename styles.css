@@ -443,6 +443,7 @@ nav {
     flex-direction: column !important;
     box-sizing: border-box !important;
     transition: none !important;
+    overflow: hidden !important;
     /* Height and top will be set dynamically by JavaScript based on visual viewport */
 }
 
@@ -656,6 +657,7 @@ nav {
     flex-direction: column !important;
     box-sizing: border-box !important;
     transition: none !important;
+    overflow: hidden !important;
     /* Height and top will be set dynamically by JavaScript based on visual viewport */
 }
 
