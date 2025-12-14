@@ -2146,19 +2146,22 @@ async function handleCreatePost() {
     // Remove fullscreen mode when submitting
     if (elements.writePanel) {
         // Restore scroll position
-        const scrollY = document.body.style.top ? parseInt(document.body.style.top.replace('-', ''), 10) : 0;
+        const scrollY = elements.writePanel._savedScrollY || 0;
         elements.writePanel.classList.remove('write-panel-fullscreen');
         document.body.style.overflow = '';
         document.body.style.position = '';
         document.body.style.width = '';
         document.body.style.top = '';
-        // Restore scroll position
-        window.scrollTo(0, scrollY || 0);
         // Remove touchmove prevention
         if (elements.writePanel._preventScrollHandler) {
             document.removeEventListener('touchmove', elements.writePanel._preventScrollHandler);
             elements.writePanel._preventScrollHandler = null;
         }
+        // Restore scroll position after DOM updates
+        requestAnimationFrame(() => {
+            window.scrollTo(0, scrollY);
+            elements.writePanel._savedScrollY = null;
+        });
     }
     
     const newPost = await createPost(content, tag);
@@ -2280,19 +2283,22 @@ async function handleCreateSuggestion() {
     // Remove fullscreen mode when submitting
     if (elements.suggestPanel) {
         // Restore scroll position
-        const scrollY = document.body.style.top ? parseInt(document.body.style.top.replace('-', ''), 10) : 0;
+        const scrollY = elements.suggestPanel._savedScrollY || 0;
         elements.suggestPanel.classList.remove('suggest-panel-fullscreen');
         document.body.style.overflow = '';
         document.body.style.position = '';
         document.body.style.width = '';
         document.body.style.top = '';
-        // Restore scroll position
-        window.scrollTo(0, scrollY || 0);
         // Remove touchmove prevention
         if (elements.suggestPanel._preventScrollHandler) {
             document.removeEventListener('touchmove', elements.suggestPanel._preventScrollHandler);
             elements.suggestPanel._preventScrollHandler = null;
         }
+        // Restore scroll position after DOM updates
+        requestAnimationFrame(() => {
+            window.scrollTo(0, scrollY);
+            elements.suggestPanel._savedScrollY = null;
+        });
     }
     
     const newSuggestion = await createSuggestion(content);
@@ -2643,6 +2649,7 @@ function setupEventListeners() {
                 // #endregion
                 // Prevent background scrolling - store scroll position and lock it
                 const scrollY = window.scrollY;
+                elements.writePanel._savedScrollY = scrollY; // Store for restoration
                 document.body.style.overflow = 'hidden';
                 document.body.style.position = 'fixed';
                 document.body.style.width = '100%';
@@ -2696,20 +2703,23 @@ function setupEventListeners() {
                             window.removeEventListener('resize', updateHeight);
                         }
                         // Restore scroll position
-                        const scrollY = document.body.style.top ? parseInt(document.body.style.top.replace('-', ''), 10) : 0;
+                        const scrollY = elements.writePanel._savedScrollY || 0;
                         document.body.style.overflow = '';
                         document.body.style.position = '';
                         document.body.style.width = '';
                         document.body.style.top = '';
                         elements.writePanel.style.height = '';
                         elements.writePanel.style.top = '';
-                        // Restore scroll position
-                        window.scrollTo(0, scrollY || 0);
                         // Remove touchmove prevention
                         if (elements.writePanel._preventScrollHandler) {
                             document.removeEventListener('touchmove', elements.writePanel._preventScrollHandler);
                             elements.writePanel._preventScrollHandler = null;
                         }
+                        // Restore scroll position after DOM updates
+                        requestAnimationFrame(() => {
+                            window.scrollTo(0, scrollY);
+                            elements.writePanel._savedScrollY = null;
+                        });
                         // Restore sticky class when exiting fullscreen
                         if (isAuthenticated) {
                             elements.writePanel.classList.add('write-panel-sticky');
@@ -2758,15 +2768,25 @@ function setupEventListeners() {
             // Delay to allow submit button clicks to work
             setTimeout(() => {
                 if (document.activeElement !== elements.postTag) {
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/9c27437d-89e3-443e-a630-d9c29e767acb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app.js:2696',message:'postContent blur - removing fullscreen',data:{activeElement:document.activeElement?.tagName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-                    // #endregion
+                    // Restore scroll position
+                    const scrollY = elements.writePanel._savedScrollY || 0;
                     elements.writePanel.classList.remove('write-panel-fullscreen');
                     document.body.style.overflow = '';
                     document.body.style.position = '';
                     document.body.style.width = '';
+                    document.body.style.top = '';
                     elements.writePanel.style.height = '';
                     elements.writePanel.style.top = '';
+                    // Remove touchmove prevention
+                    if (elements.writePanel._preventScrollHandler) {
+                        document.removeEventListener('touchmove', elements.writePanel._preventScrollHandler);
+                        elements.writePanel._preventScrollHandler = null;
+                    }
+                    // Restore scroll position after DOM updates
+                    requestAnimationFrame(() => {
+                        window.scrollTo(0, scrollY);
+                        elements.writePanel._savedScrollY = null;
+                    });
                 }
             }, 200);
         });
@@ -2779,6 +2799,7 @@ function setupEventListeners() {
                         elements.writePanel.classList.add('write-panel-fullscreen');
                         // Prevent background scrolling - store scroll position and lock it
                         const scrollY = window.scrollY;
+                        elements.writePanel._savedScrollY = scrollY; // Store for restoration
                         document.body.style.overflow = 'hidden';
                         document.body.style.position = 'fixed';
                         document.body.style.width = '100%';
@@ -2887,7 +2908,7 @@ function setupEventListeners() {
     if (elements.suggestPanelClose) {
         elements.suggestPanelClose.addEventListener('click', () => {
             // Restore scroll position
-            const scrollY = document.body.style.top ? parseInt(document.body.style.top.replace('-', ''), 10) : 0;
+            const scrollY = elements.suggestPanel._savedScrollY || 0;
             elements.suggestPanel.classList.remove('suggest-panel-fullscreen');
             // Restore sticky class
             elements.suggestPanel.classList.add('suggest-panel-sticky');
@@ -2901,13 +2922,16 @@ function setupEventListeners() {
             if (elements.suggestPanel.style.top) {
                 elements.suggestPanel.style.top = '';
             }
-            // Restore scroll position
-            window.scrollTo(0, scrollY || 0);
             // Remove touchmove prevention
             if (elements.suggestPanel._preventScrollHandler) {
                 document.removeEventListener('touchmove', elements.suggestPanel._preventScrollHandler);
                 elements.suggestPanel._preventScrollHandler = null;
             }
+            // Restore scroll position after DOM updates
+            requestAnimationFrame(() => {
+                window.scrollTo(0, scrollY);
+                elements.suggestPanel._savedScrollY = null;
+            });
             // Clear input text when closing
             elements.suggestContent.value = '';
             // Blur any focused inputs
@@ -2987,20 +3011,23 @@ function setupEventListeners() {
                             window.removeEventListener('resize', updateHeight);
                         }
                         // Restore scroll position
-                        const scrollY = document.body.style.top ? parseInt(document.body.style.top.replace('-', ''), 10) : 0;
+                        const scrollY = elements.suggestPanel._savedScrollY || 0;
                         document.body.style.overflow = '';
                         document.body.style.position = '';
                         document.body.style.width = '';
                         document.body.style.top = '';
                         elements.suggestPanel.style.height = '';
                         elements.suggestPanel.style.top = '';
-                        // Restore scroll position
-                        window.scrollTo(0, scrollY || 0);
                         // Remove touchmove prevention
                         if (elements.suggestPanel._preventScrollHandler) {
                             document.removeEventListener('touchmove', elements.suggestPanel._preventScrollHandler);
                             elements.suggestPanel._preventScrollHandler = null;
                         }
+                        // Restore scroll position after DOM updates
+                        requestAnimationFrame(() => {
+                            window.scrollTo(0, scrollY);
+                            elements.suggestPanel._savedScrollY = null;
+                        });
                         heightUpdateHandler = null;
                         observer.disconnect();
                     }
@@ -3046,7 +3073,7 @@ function setupEventListeners() {
                 // Don't exit fullscreen if user clicked a button within the panel
                 if (!isWithinPanel && elements.suggestPanel.classList.contains('suggest-panel-fullscreen')) {
                     // Restore scroll position
-                    const scrollY = document.body.style.top ? parseInt(document.body.style.top.replace('-', ''), 10) : 0;
+                    const scrollY = elements.suggestPanel._savedScrollY || 0;
                     elements.suggestPanel.classList.remove('suggest-panel-fullscreen');
                     document.body.style.overflow = '';
                     document.body.style.position = '';
@@ -3054,13 +3081,16 @@ function setupEventListeners() {
                     document.body.style.top = '';
                     elements.suggestPanel.style.height = '';
                     elements.suggestPanel.style.top = '';
-                    // Restore scroll position
-                    window.scrollTo(0, scrollY || 0);
                     // Remove touchmove prevention
                     if (elements.suggestPanel._preventScrollHandler) {
                         document.removeEventListener('touchmove', elements.suggestPanel._preventScrollHandler);
                         elements.suggestPanel._preventScrollHandler = null;
                     }
+                    // Restore scroll position after DOM updates
+                    requestAnimationFrame(() => {
+                        window.scrollTo(0, scrollY);
+                        elements.suggestPanel._savedScrollY = null;
+                    });
                 }
             }, 200);
         });
