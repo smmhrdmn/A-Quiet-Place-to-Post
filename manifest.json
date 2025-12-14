@@ -2,7 +2,7 @@
   "name": "nez updates",
   "short_name": "nez",
   "description": "A quiet place to post",
-  "start_url": "/",
+  "start_url": "/A-Quiet-Place-to-Post/",
   "display": "standalone",
   "background_color": "#faf8f8",
   "theme_color": "#ff69b4",
