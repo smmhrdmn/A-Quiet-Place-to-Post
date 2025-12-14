@@ -2583,6 +2583,10 @@ function setupEventListeners() {
     if (elements.writePanelClose) {
         elements.writePanelClose.addEventListener('click', () => {
             elements.writePanel.classList.remove('write-panel-fullscreen');
+            // Restore sticky class
+            if (isAuthenticated) {
+                elements.writePanel.classList.add('write-panel-sticky');
+            }
             document.body.style.overflow = '';
             document.body.style.position = '';
             document.body.style.width = '';
@@ -2608,6 +2612,8 @@ function setupEventListeners() {
         
         const enterFullscreen = () => {
             if (window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+                // Remove sticky positioning first to avoid glitchy transition
+                elements.writePanel.classList.remove('write-panel-sticky');
                 elements.writePanel.classList.add('write-panel-fullscreen');
                 // Prevent background scrolling
                 document.body.style.overflow = 'hidden';
@@ -2656,6 +2662,10 @@ function setupEventListeners() {
                         document.body.style.width = '';
                         elements.writePanel.style.height = '';
                         elements.writePanel.style.top = '';
+                        // Restore sticky class when exiting fullscreen
+                        if (isAuthenticated) {
+                            elements.writePanel.classList.add('write-panel-sticky');
+                        }
                         heightUpdateHandler = null;
                         observer.disconnect();
                     }
@@ -2667,8 +2677,18 @@ function setupEventListeners() {
             }
         };
         
+        // Use click/touchstart to enter fullscreen, then focus
+        const handleInputInteraction = (e) => {
+            enterFullscreen();
+            // Small delay to ensure fullscreen is set before focusing
+            requestAnimationFrame(() => {
+                elements.postContent.focus();
+            });
+        };
+        
         elements.postContent.addEventListener('focus', enterFullscreen);
-        elements.postContent.addEventListener('touchstart', enterFullscreen);
+        elements.postContent.addEventListener('click', handleInputInteraction);
+        elements.postContent.addEventListener('touchstart', handleInputInteraction);
         
         elements.postContent.addEventListener('blur', () => {
             // Delay to allow submit button clicks to work
@@ -2728,8 +2748,18 @@ function setupEventListeners() {
             }
         };
         
+        // Use click/touchstart to enter fullscreen, then focus
+        const handleTagInteraction = (e) => {
+            enterFullscreen();
+            // Small delay to ensure fullscreen is set before focusing
+            requestAnimationFrame(() => {
+                elements.postTag.focus();
+            });
+        };
+        
         elements.postTag.addEventListener('focus', enterFullscreen);
-        elements.postTag.addEventListener('touchstart', enterFullscreen);
+        elements.postTag.addEventListener('click', handleTagInteraction);
+        elements.postTag.addEventListener('touchstart', handleTagInteraction);
         
         elements.postTag.addEventListener('blur', () => {
             // Only remove if postContent is also not focused
@@ -2780,6 +2810,8 @@ function setupEventListeners() {
     if (elements.suggestPanelClose) {
         elements.suggestPanelClose.addEventListener('click', () => {
             elements.suggestPanel.classList.remove('suggest-panel-fullscreen');
+            // Restore sticky class
+            elements.suggestPanel.classList.add('suggest-panel-sticky');
             document.body.style.overflow = '';
             document.body.style.position = '';
             document.body.style.width = '';
@@ -2861,8 +2893,18 @@ function setupEventListeners() {
             }
         };
         
+        // Use click/touchstart to enter fullscreen, then focus
+        const handleSuggestInteraction = (e) => {
+            enterFullscreen();
+            // Small delay to ensure fullscreen is set before focusing
+            requestAnimationFrame(() => {
+                elements.suggestContent.focus();
+            });
+        };
+        
         elements.suggestContent.addEventListener('focus', enterFullscreen);
-        elements.suggestContent.addEventListener('touchstart', enterFullscreen);
+        elements.suggestContent.addEventListener('click', handleSuggestInteraction);
+        elements.suggestContent.addEventListener('touchstart', handleSuggestInteraction);
         
         elements.suggestContent.addEventListener('blur', () => {
             // Delay to allow submit button clicks to work
@@ -2895,9 +2937,13 @@ function setupEventListeners() {
         // Enter fullscreen if on mobile and not already in fullscreen
         if (window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
             if (!elements.suggestPanel.classList.contains('suggest-panel-fullscreen')) {
+                // Remove sticky positioning first to avoid glitchy transition
+                elements.suggestPanel.classList.remove('suggest-panel-sticky');
                 elements.suggestPanel.classList.add('suggest-panel-fullscreen');
                 // Prevent background scrolling
                 document.body.style.overflow = 'hidden';
+                document.body.style.position = 'fixed';
+                document.body.style.width = '100%';
                 
                 // Use visual viewport height to account for keyboard
                 const updateHeight = () => {
@@ -2928,13 +2974,15 @@ function setupEventListeners() {
             }
         }
         
-        // Use setTimeout to ensure fullscreen is set before focusing
-        setTimeout(() => {
-            elements.suggestContent.focus();
-            // Set cursor position to the end of the text
-            const textLength = elements.suggestContent.value.length;
-            elements.suggestContent.setSelectionRange(textLength, textLength);
-        }, 0);
+        // Focus immediately to open keyboard - use double requestAnimationFrame to ensure DOM is ready
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                elements.suggestContent.focus();
+                // Set cursor position to the end of the text
+                const textLength = elements.suggestContent.value.length;
+                elements.suggestContent.setSelectionRange(textLength, textLength);
+            });
+        });
     });
     
     // Playlist save
