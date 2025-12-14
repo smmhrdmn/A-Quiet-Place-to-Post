@@ -2147,6 +2147,8 @@ async function handleCreatePost() {
     if (elements.writePanel) {
         elements.writePanel.classList.remove('write-panel-fullscreen');
         document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.width = '';
     }
     
     const newPost = await createPost(content, tag);
@@ -2269,6 +2271,8 @@ async function handleCreateSuggestion() {
     if (elements.suggestPanel) {
         elements.suggestPanel.classList.remove('suggest-panel-fullscreen');
         document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.width = '';
     }
     
     const newSuggestion = await createSuggestion(content);
@@ -2580,8 +2584,13 @@ function setupEventListeners() {
         elements.writePanelClose.addEventListener('click', () => {
             elements.writePanel.classList.remove('write-panel-fullscreen');
             document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.width = '';
             if (elements.writePanel.style.height) {
                 elements.writePanel.style.height = '';
+            }
+            if (elements.writePanel.style.top) {
+                elements.writePanel.style.top = '';
             }
             // Blur any focused inputs
             if (document.activeElement === elements.postContent) {
@@ -2602,6 +2611,8 @@ function setupEventListeners() {
                 elements.writePanel.classList.add('write-panel-fullscreen');
                 // Prevent background scrolling
                 document.body.style.overflow = 'hidden';
+                document.body.style.position = 'fixed';
+                document.body.style.width = '100%';
                 
                 // Use visual viewport height to account for keyboard
                 const updateHeight = () => {
@@ -2641,6 +2652,8 @@ function setupEventListeners() {
                             window.removeEventListener('resize', updateHeight);
                         }
                         document.body.style.overflow = '';
+                        document.body.style.position = '';
+                        document.body.style.width = '';
                         elements.writePanel.style.height = '';
                         elements.writePanel.style.top = '';
                         heightUpdateHandler = null;
@@ -2663,6 +2676,8 @@ function setupEventListeners() {
                 if (document.activeElement !== elements.postTag) {
                     elements.writePanel.classList.remove('write-panel-fullscreen');
                     document.body.style.overflow = '';
+                    document.body.style.position = '';
+                    document.body.style.width = '';
                     elements.writePanel.style.height = '';
                     elements.writePanel.style.top = '';
                 }
@@ -2673,10 +2688,12 @@ function setupEventListeners() {
     if (elements.postTag && elements.writePanel) {
         const enterFullscreen = () => {
             if (window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-                if (!elements.writePanel.classList.contains('write-panel-fullscreen')) {
-                    elements.writePanel.classList.add('write-panel-fullscreen');
-                    // Prevent background scrolling
-                    document.body.style.overflow = 'hidden';
+                    if (!elements.writePanel.classList.contains('write-panel-fullscreen')) {
+                        elements.writePanel.classList.add('write-panel-fullscreen');
+                        // Prevent background scrolling
+                        document.body.style.overflow = 'hidden';
+                        document.body.style.position = 'fixed';
+                        document.body.style.width = '100%';
                     
                     // Use visual viewport height to account for keyboard
                     const updateHeight = () => {
@@ -2720,6 +2737,8 @@ function setupEventListeners() {
                 if (document.activeElement !== elements.postContent) {
                     elements.writePanel.classList.remove('write-panel-fullscreen');
                     document.body.style.overflow = '';
+                    document.body.style.position = '';
+                    document.body.style.width = '';
                     elements.writePanel.style.height = '';
                     elements.writePanel.style.top = '';
                 }
@@ -2762,9 +2781,16 @@ function setupEventListeners() {
         elements.suggestPanelClose.addEventListener('click', () => {
             elements.suggestPanel.classList.remove('suggest-panel-fullscreen');
             document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.width = '';
             if (elements.suggestPanel.style.height) {
                 elements.suggestPanel.style.height = '';
             }
+            if (elements.suggestPanel.style.top) {
+                elements.suggestPanel.style.top = '';
+            }
+            // Clear input text when closing
+            elements.suggestContent.value = '';
             // Blur any focused inputs
             if (document.activeElement === elements.suggestContent) {
                 elements.suggestContent.blur();
@@ -2820,6 +2846,8 @@ function setupEventListeners() {
                             window.removeEventListener('resize', updateHeight);
                         }
                         document.body.style.overflow = '';
+                        document.body.style.position = '';
+                        document.body.style.width = '';
                         elements.suggestPanel.style.height = '';
                         elements.suggestPanel.style.top = '';
                         heightUpdateHandler = null;
@@ -2847,6 +2875,8 @@ function setupEventListeners() {
                 if (!isWithinPanel && elements.suggestPanel.classList.contains('suggest-panel-fullscreen')) {
                     elements.suggestPanel.classList.remove('suggest-panel-fullscreen');
                     document.body.style.overflow = '';
+                    document.body.style.position = '';
+                    document.body.style.width = '';
                     elements.suggestPanel.style.height = '';
                     elements.suggestPanel.style.top = '';
                 }

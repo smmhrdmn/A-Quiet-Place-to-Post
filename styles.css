@@ -35,7 +35,7 @@ html {
     background: var(--bg);
 }
 
-/* Ensure safe area is transparent and content can scroll behind it */
+/* Ensure safe area matches background color and content can scroll behind it */
 body::before {
     content: '';
     position: fixed;
@@ -43,7 +43,7 @@ body::before {
     left: 0;
     right: 0;
     height: env(safe-area-inset-top, 0);
-    background: transparent;
+    background: var(--bg);
     z-index: -1;
     pointer-events: none;
 }
@@ -417,7 +417,7 @@ nav {
     z-index: 100 !important;
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05) !important;
     box-sizing: border-box !important;
-    transition: all 0.3s ease !important;
+    transition: all 0.1s ease !important;
 }
 
 .write-panel-fullscreen,
@@ -441,6 +441,7 @@ nav {
     display: flex !important;
     flex-direction: column !important;
     box-sizing: border-box !important;
+    transition: none !important;
     /* Height and top will be set dynamically by JavaScript based on visual viewport */
 }
 
@@ -628,7 +629,7 @@ nav {
     z-index: 100 !important;
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05) !important;
     box-sizing: border-box !important;
-    transition: all 0.3s ease !important;
+    transition: all 0.1s ease !important;
 }
 
 .suggest-panel-fullscreen,
@@ -652,6 +653,7 @@ nav {
     display: flex !important;
     flex-direction: column !important;
     box-sizing: border-box !important;
+    transition: none !important;
     /* Height and top will be set dynamically by JavaScript based on visual viewport */
 }
 
