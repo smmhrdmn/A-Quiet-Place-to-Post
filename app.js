@@ -2147,20 +2147,9 @@ async function handleCreatePost() {
     if (elements.writePanel) {
         const scrollY = elements.writePanel._savedScrollY || 0;
         elements.writePanel.classList.remove('write-panel-fullscreen');
-        // Remove all scroll prevention
-        if (elements.writePanel._preventScrollHandler) {
-            document.removeEventListener('touchmove', elements.writePanel._preventScrollHandler);
-            document.removeEventListener('scroll', elements.writePanel._preventScrollHandler);
-            elements.writePanel.removeEventListener('touchmove', elements.writePanel._preventScrollHandler);
-            elements.writePanel._preventScrollHandler = null;
-        }
-        if (elements.writePanel._preventWheelHandler) {
-            document.removeEventListener('wheel', elements.writePanel._preventWheelHandler);
-            elements.writePanel.removeEventListener('wheel', elements.writePanel._preventWheelHandler);
-            elements.writePanel._preventWheelHandler = null;
-        }
-        document.documentElement.style.overflow = '';
-        document.body.style.overflow = '';
+        // Remove scroll prevention class
+        document.documentElement.classList.remove('fullscreen-open');
+        document.body.classList.remove('fullscreen-open');
         window.scrollTo(0, scrollY);
         elements.writePanel._savedScrollY = null;
     }
@@ -2285,20 +2274,9 @@ async function handleCreateSuggestion() {
     if (elements.suggestPanel) {
         const scrollY = elements.suggestPanel._savedScrollY || 0;
         elements.suggestPanel.classList.remove('suggest-panel-fullscreen');
-        // Remove all scroll prevention
-        if (elements.suggestPanel._preventScrollHandler) {
-            document.removeEventListener('touchmove', elements.suggestPanel._preventScrollHandler);
-            document.removeEventListener('scroll', elements.suggestPanel._preventScrollHandler);
-            elements.suggestPanel.removeEventListener('touchmove', elements.suggestPanel._preventScrollHandler);
-            elements.suggestPanel._preventScrollHandler = null;
-        }
-        if (elements.suggestPanel._preventWheelHandler) {
-            document.removeEventListener('wheel', elements.suggestPanel._preventWheelHandler);
-            elements.suggestPanel.removeEventListener('wheel', elements.suggestPanel._preventWheelHandler);
-            elements.suggestPanel._preventWheelHandler = null;
-        }
-        document.documentElement.style.overflow = '';
-        document.body.style.overflow = '';
+        // Remove scroll prevention class
+        document.documentElement.classList.remove('fullscreen-open');
+        document.body.classList.remove('fullscreen-open');
         window.scrollTo(0, scrollY);
         elements.suggestPanel._savedScrollY = null;
     }
@@ -2610,26 +2588,22 @@ function setupEventListeners() {
     // Close button handler for write panel
     if (elements.writePanelClose) {
         elements.writePanelClose.addEventListener('click', () => {
+            const scrollY = elements.writePanel._savedScrollY || 0;
             elements.writePanel.classList.remove('write-panel-fullscreen');
             // Restore sticky class
             if (isAuthenticated) {
                 elements.writePanel.classList.add('write-panel-sticky');
             }
-            document.body.style.overflow = '';
-            document.body.style.position = '';
-            document.body.style.width = '';
-            if (elements.writePanel.style.height) {
-                elements.writePanel.style.height = '';
-            }
-            if (elements.writePanel.style.top) {
-                elements.writePanel.style.top = '';
-            }
+            // Remove scroll prevention class
+            document.documentElement.classList.remove('fullscreen-open');
+            document.body.classList.remove('fullscreen-open');
+            elements.writePanel.style.removeProperty('height');
+            elements.writePanel.style.removeProperty('top');
+            window.scrollTo(0, scrollY);
+            elements.writePanel._savedScrollY = null;
             // Blur any focused inputs
-            if (document.activeElement === elements.postContent) {
-                elements.postContent.blur();
-            }
-            if (document.activeElement === elements.postTag) {
-                elements.postTag.blur();
+            if (document.activeElement === elements.postContent || document.activeElement === elements.postTag) {
+                document.activeElement.blur();
             }
         });
     }
@@ -2649,40 +2623,11 @@ function setupEventListeners() {
                 // #region agent log
                 fetch('http://127.0.0.1:7242/ingest/9c27437d-89e3-443e-a630-d9c29e767acb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app.js:2619',message:'After adding fullscreen class',data:{hasFullscreenClass:elements.writePanel.classList.contains('write-panel-fullscreen')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
                 // #endregion
-                // Prevent background scrolling - simple approach
+                // Prevent background scrolling using CSS class
                 const scrollY = window.scrollY;
                 elements.writePanel._savedScrollY = scrollY;
-                document.documentElement.style.overflow = 'hidden';
-                document.body.style.overflow = 'hidden';
-                
-                // Prevent all scrolling in fullscreen - comprehensive approach
-                const preventScroll = (e) => {
-                    // Only allow scrolling within textareas
-                    const target = e.target;
-                    if (target !== elements.postContent && target !== elements.postTag && 
-                        !target.closest('textarea')) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                    }
-                };
-                const preventWheel = (e) => {
-                    // Only allow scrolling within textareas
-                    const target = e.target;
-                    if (target !== elements.postContent && target !== elements.postTag && 
-                        !target.closest('textarea')) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                    }
-                };
-                // Prevent touchmove, wheel, and scroll events
-                document.addEventListener('touchmove', preventScroll, { passive: false });
-                document.addEventListener('wheel', preventWheel, { passive: false });
-                document.addEventListener('scroll', preventScroll, { passive: false });
-                // Also prevent on the panel itself
-                elements.writePanel.addEventListener('touchmove', preventScroll, { passive: false });
-                elements.writePanel.addEventListener('wheel', preventWheel, { passive: false });
-                elements.writePanel._preventScrollHandler = preventScroll;
-                elements.writePanel._preventWheelHandler = preventWheel;
+                document.documentElement.classList.add('fullscreen-open');
+                document.body.classList.add('fullscreen-open');
                 
                 // Use visual viewport height to account for keyboard
                 const updateHeight = () => {
@@ -2723,20 +2668,9 @@ function setupEventListeners() {
                         }
                         // Restore scroll position
                         const scrollY = elements.writePanel._savedScrollY || 0;
-                        // Remove all scroll prevention
-                        if (elements.writePanel._preventScrollHandler) {
-                            document.removeEventListener('touchmove', elements.writePanel._preventScrollHandler);
-                            document.removeEventListener('scroll', elements.writePanel._preventScrollHandler);
-                            elements.writePanel.removeEventListener('touchmove', elements.writePanel._preventScrollHandler);
-                            elements.writePanel._preventScrollHandler = null;
-                        }
-                        if (elements.writePanel._preventWheelHandler) {
-                            document.removeEventListener('wheel', elements.writePanel._preventWheelHandler);
-                            elements.writePanel.removeEventListener('wheel', elements.writePanel._preventWheelHandler);
-                            elements.writePanel._preventWheelHandler = null;
-                        }
-                        document.documentElement.style.overflow = '';
-                        document.body.style.overflow = '';
+                        // Remove scroll prevention class
+                        document.documentElement.classList.remove('fullscreen-open');
+                        document.body.classList.remove('fullscreen-open');
                         elements.writePanel.style.removeProperty('height');
                         elements.writePanel.style.removeProperty('top');
                         // Restore scroll position
@@ -2793,20 +2727,9 @@ function setupEventListeners() {
                     // Restore scroll position
                     const scrollY = elements.writePanel._savedScrollY || 0;
                     elements.writePanel.classList.remove('write-panel-fullscreen');
-                    // Remove all scroll prevention
-                    if (elements.writePanel._preventScrollHandler) {
-                        document.removeEventListener('touchmove', elements.writePanel._preventScrollHandler);
-                        document.removeEventListener('scroll', elements.writePanel._preventScrollHandler);
-                        elements.writePanel.removeEventListener('touchmove', elements.writePanel._preventScrollHandler);
-                        elements.writePanel._preventScrollHandler = null;
-                    }
-                    if (elements.writePanel._preventWheelHandler) {
-                        document.removeEventListener('wheel', elements.writePanel._preventWheelHandler);
-                        elements.writePanel.removeEventListener('wheel', elements.writePanel._preventWheelHandler);
-                        elements.writePanel._preventWheelHandler = null;
-                    }
-                    document.documentElement.style.overflow = '';
-                    document.body.style.overflow = '';
+                    // Remove scroll prevention class
+                    document.documentElement.classList.remove('fullscreen-open');
+                    document.body.classList.remove('fullscreen-open');
                     elements.writePanel.style.removeProperty('height');
                     elements.writePanel.style.removeProperty('top');
                     // Restore scroll position
@@ -2822,21 +2745,11 @@ function setupEventListeners() {
             if (window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
                     if (!elements.writePanel.classList.contains('write-panel-fullscreen')) {
                         elements.writePanel.classList.add('write-panel-fullscreen');
-                        // Prevent background scrolling - simple approach
+                        // Prevent background scrolling using CSS class
                         const scrollY = window.scrollY;
                         elements.writePanel._savedScrollY = scrollY;
-                        document.documentElement.style.overflow = 'hidden';
-                        document.body.style.overflow = 'hidden';
-                        
-                        // Prevent touchmove events to prevent scrolling in fullscreen
-                        const preventScroll = (e) => {
-                            // Only allow scrolling within textareas
-                            if (e.target !== elements.postContent && e.target !== elements.postTag) {
-                                e.preventDefault();
-                            }
-                        };
-                        document.addEventListener('touchmove', preventScroll, { passive: false });
-                        elements.writePanel._preventScrollHandler = preventScroll;
+                        document.documentElement.classList.add('fullscreen-open');
+                        document.body.classList.add('fullscreen-open');
                     
                     // Use visual viewport height to account for keyboard
                     const updateHeight = () => {
@@ -2933,13 +2846,9 @@ function setupEventListeners() {
             const scrollY = elements.suggestPanel._savedScrollY || 0;
             elements.suggestPanel.classList.remove('suggest-panel-fullscreen');
             elements.suggestPanel.classList.add('suggest-panel-sticky');
-            // Remove touchmove prevention
-            if (elements.suggestPanel._preventScrollHandler) {
-                document.removeEventListener('touchmove', elements.suggestPanel._preventScrollHandler);
-                elements.suggestPanel._preventScrollHandler = null;
-            }
-            document.documentElement.style.overflow = '';
-            document.body.style.overflow = '';
+            // Remove scroll prevention class
+            document.documentElement.classList.remove('fullscreen-open');
+            document.body.classList.remove('fullscreen-open');
             elements.suggestPanel.style.removeProperty('height');
             elements.suggestPanel.style.removeProperty('top');
             window.scrollTo(0, scrollY);
@@ -2966,38 +2875,11 @@ function setupEventListeners() {
                 // #region agent log
                 fetch('http://127.0.0.1:7242/ingest/9c27437d-89e3-443e-a630-d9c29e767acb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app.js:2886',message:'After adding fullscreen class for suggest',data:{hasFullscreenClass:elements.suggestPanel.classList.contains('suggest-panel-fullscreen')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
                 // #endregion
-                // Prevent background scrolling - simple approach
+                // Prevent background scrolling using CSS class
                 const scrollY = window.scrollY;
                 elements.suggestPanel._savedScrollY = scrollY;
-                document.documentElement.style.overflow = 'hidden';
-                document.body.style.overflow = 'hidden';
-                
-                // Prevent all scrolling in fullscreen - comprehensive approach
-                const preventScroll = (e) => {
-                    // Only allow scrolling within textareas
-                    const target = e.target;
-                    if (target !== elements.suggestContent && !target.closest('textarea')) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                    }
-                };
-                const preventWheel = (e) => {
-                    // Only allow scrolling within textareas
-                    const target = e.target;
-                    if (target !== elements.suggestContent && !target.closest('textarea')) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                    }
-                };
-                // Prevent touchmove, wheel, and scroll events
-                document.addEventListener('touchmove', preventScroll, { passive: false });
-                document.addEventListener('wheel', preventWheel, { passive: false });
-                document.addEventListener('scroll', preventScroll, { passive: false });
-                // Also prevent on the panel itself
-                elements.suggestPanel.addEventListener('touchmove', preventScroll, { passive: false });
-                elements.suggestPanel.addEventListener('wheel', preventWheel, { passive: false });
-                elements.suggestPanel._preventScrollHandler = preventScroll;
-                elements.suggestPanel._preventWheelHandler = preventWheel;
+                document.documentElement.classList.add('fullscreen-open');
+                document.body.classList.add('fullscreen-open');
                 
                 // Use visual viewport height to account for keyboard
                 const updateHeight = () => {
@@ -3038,20 +2920,9 @@ function setupEventListeners() {
                         }
                         // Restore scroll position
                         const scrollY = elements.suggestPanel._savedScrollY || 0;
-                        // Remove all scroll prevention
-                        if (elements.suggestPanel._preventScrollHandler) {
-                            document.removeEventListener('touchmove', elements.suggestPanel._preventScrollHandler);
-                            document.removeEventListener('scroll', elements.suggestPanel._preventScrollHandler);
-                            elements.suggestPanel.removeEventListener('touchmove', elements.suggestPanel._preventScrollHandler);
-                            elements.suggestPanel._preventScrollHandler = null;
-                        }
-                        if (elements.suggestPanel._preventWheelHandler) {
-                            document.removeEventListener('wheel', elements.suggestPanel._preventWheelHandler);
-                            elements.suggestPanel.removeEventListener('wheel', elements.suggestPanel._preventWheelHandler);
-                            elements.suggestPanel._preventWheelHandler = null;
-                        }
-                        document.documentElement.style.overflow = '';
-                        document.body.style.overflow = '';
+                        // Remove scroll prevention class
+                        document.documentElement.classList.remove('fullscreen-open');
+                        document.body.classList.remove('fullscreen-open');
                         elements.suggestPanel.style.removeProperty('height');
                         elements.suggestPanel.style.removeProperty('top');
                         window.scrollTo(0, scrollY);
@@ -3103,20 +2974,9 @@ function setupEventListeners() {
                     // Restore scroll position
                     const scrollY = elements.suggestPanel._savedScrollY || 0;
                     elements.suggestPanel.classList.remove('suggest-panel-fullscreen');
-                    // Remove all scroll prevention
-                    if (elements.suggestPanel._preventScrollHandler) {
-                        document.removeEventListener('touchmove', elements.suggestPanel._preventScrollHandler);
-                        document.removeEventListener('scroll', elements.suggestPanel._preventScrollHandler);
-                        elements.suggestPanel.removeEventListener('touchmove', elements.suggestPanel._preventScrollHandler);
-                        elements.suggestPanel._preventScrollHandler = null;
-                    }
-                    if (elements.suggestPanel._preventWheelHandler) {
-                        document.removeEventListener('wheel', elements.suggestPanel._preventWheelHandler);
-                        elements.suggestPanel.removeEventListener('wheel', elements.suggestPanel._preventWheelHandler);
-                        elements.suggestPanel._preventWheelHandler = null;
-                    }
-                    document.documentElement.style.overflow = '';
-                    document.body.style.overflow = '';
+                    // Remove scroll prevention class
+                    document.documentElement.classList.remove('fullscreen-open');
+                    document.body.classList.remove('fullscreen-open');
                     elements.suggestPanel.style.removeProperty('height');
                     elements.suggestPanel.style.removeProperty('top');
                     window.scrollTo(0, scrollY);
@@ -3143,38 +3003,11 @@ function setupEventListeners() {
                 // Remove sticky positioning first to avoid glitchy transition
                 elements.suggestPanel.classList.remove('suggest-panel-sticky');
                 elements.suggestPanel.classList.add('suggest-panel-fullscreen');
-                // Prevent background scrolling - simple approach
+                // Prevent background scrolling using CSS class
                 const scrollY = window.scrollY;
                 elements.suggestPanel._savedScrollY = scrollY;
-                document.documentElement.style.overflow = 'hidden';
-                document.body.style.overflow = 'hidden';
-                
-                // Prevent all scrolling in fullscreen - comprehensive approach
-                const preventScroll = (e) => {
-                    // Only allow scrolling within textareas
-                    const target = e.target;
-                    if (target !== elements.suggestContent && !target.closest('textarea')) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                    }
-                };
-                const preventWheel = (e) => {
-                    // Only allow scrolling within textareas
-                    const target = e.target;
-                    if (target !== elements.suggestContent && !target.closest('textarea')) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                    }
-                };
-                // Prevent touchmove, wheel, and scroll events
-                document.addEventListener('touchmove', preventScroll, { passive: false });
-                document.addEventListener('wheel', preventWheel, { passive: false });
-                document.addEventListener('scroll', preventScroll, { passive: false });
-                // Also prevent on the panel itself
-                elements.suggestPanel.addEventListener('touchmove', preventScroll, { passive: false });
-                elements.suggestPanel.addEventListener('wheel', preventWheel, { passive: false });
-                elements.suggestPanel._preventScrollHandler = preventScroll;
-                elements.suggestPanel._preventWheelHandler = preventWheel;
+                document.documentElement.classList.add('fullscreen-open');
+                document.body.classList.add('fullscreen-open');
                 
                 // Use visual viewport height to account for keyboard
                 const updateHeight = () => {
