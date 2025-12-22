@@ -19,7 +19,17 @@ const CONFIG = {
 // Initialize Supabase Client
 // ============================================
 
-const supabase = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+let supabaseClient = null;
+
+// Initialize Supabase client
+function initializeSupabase() {
+    if (typeof window.supabase === 'undefined') {
+        console.error('Supabase library not loaded');
+        return false;
+    }
+    supabaseClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+    return true;
+}
 
 // ============================================
 // State
@@ -42,6 +52,7 @@ let letterboxdUrl = null;
 // ============================================
 
 let scrollPreventionHandler = null;
+let bodyScrollPreventionHandler = null;
 
 function enableScrollPrevention() {
     if (scrollPreventionHandler) return; // Already enabled
@@ -53,15 +64,43 @@ function enableScrollPrevention() {
             return; // Allow textarea scrolling
         }
         e.preventDefault();
+        e.stopPropagation();
+        return false;
     };
     
-    document.addEventListener('touchmove', scrollPreventionHandler, { passive: false });
+    // Prevent all scroll-related events with multiple strategies
+    document.addEventListener('touchmove', scrollPreventionHandler, { passive: false, capture: true });
+    document.addEventListener('wheel', scrollPreventionHandler, { passive: false, capture: true });
+    document.addEventListener('scroll', scrollPreventionHandler, { passive: false, capture: true });
+    window.addEventListener('scroll', scrollPreventionHandler, { passive: false, capture: true });
+    document.addEventListener('touchstart', scrollPreventionHandler, { passive: false, capture: true });
+    
+    // Also prevent scroll on the document body directly
+    bodyScrollPreventionHandler = function(e) {
+        if (e.target.tagName !== 'TEXTAREA') {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        }
+    };
+    document.body.addEventListener('touchmove', bodyScrollPreventionHandler, { passive: false });
+    document.body.addEventListener('wheel', bodyScrollPreventionHandler, { passive: false });
 }
 
 function disableScrollPrevention() {
     if (scrollPreventionHandler) {
-        document.removeEventListener('touchmove', scrollPreventionHandler);
+        document.removeEventListener('touchmove', scrollPreventionHandler, { capture: true });
+        document.removeEventListener('wheel', scrollPreventionHandler, { capture: true });
+        document.removeEventListener('scroll', scrollPreventionHandler, { capture: true });
+        window.removeEventListener('scroll', scrollPreventionHandler, { capture: true });
+        document.removeEventListener('touchstart', scrollPreventionHandler, { capture: true });
         scrollPreventionHandler = null;
+    }
+    
+    if (bodyScrollPreventionHandler) {
+        document.body.removeEventListener('touchmove', bodyScrollPreventionHandler);
+        document.body.removeEventListener('wheel', bodyScrollPreventionHandler);
+        bodyScrollPreventionHandler = null;
     }
 }
 
@@ -108,7 +147,10 @@ const elements = {
     letterboxdReviewsContainer: document.getElementById('letterboxd-reviews-container'),
     letterboxdReviewsList: document.getElementById('letterboxd-reviews-list'),
     letterboxdSaveSelection: document.getElementById('letterboxd-save-selection'),
-    fullscreenOverlay: document.getElementById('fullscreen-overlay')
+    fullscreenOverlay: document.getElementById('fullscreen-overlay'),
+    appStatusInfo: document.getElementById('app-status-info'),
+    appStatusText: document.getElementById('app-status-text'),
+    appStatusClose: document.getElementById('app-status-close')
 };
 
 // ============================================
@@ -116,15 +158,21 @@ const elements = {
 // ============================================
 
 async function fetchData() {
+    if (!supabaseClient) {
+        console.error('Cannot fetch data: supabase is not initialized');
+        updateAppStatus('error: cannot fetch data - supabase not initialized', 'error');
+        return { posts: [], suggestions: [] };
+    }
+    
     try {
         // Fetch posts (public read)
-        const { data: postsData, error: postsError } = await supabase
+        const { data: postsData, error: postsError } = await supabaseClient
             .from('posts')
             .select('*')
             .order('timestamp', { ascending: false });
 
         // Fetch suggestions (public read)
-        const { data: suggestionsData, error: suggestionsError } = await supabase
+        const { data: suggestionsData, error: suggestionsError } = await supabaseClient
             .from('suggestions')
             .select('*')
             .order('timestamp', { ascending: false });
@@ -140,7 +188,7 @@ async function fetchData() {
             }
         }
         
-        let reviewsQuery = supabase
+        let reviewsQuery = supabaseClient
             .from('letterboxd_reviews')
             .select('*')
             .eq('is_selected', true);
@@ -219,7 +267,7 @@ function formatReviewContent(review) {
 
 async function fetchLetterboxdSettings() {
     try {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
             .from('letterboxd_settings')
             .select('letterboxd_url')
             .eq('id', 1)
@@ -252,9 +300,9 @@ async function saveLetterboxdUrl(url) {
     }
 
     try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user } } = await supabaseClient.auth.getUser();
         
-        const { error } = await supabase
+        const { error } = await supabaseClient
             .from('letterboxd_settings')
             .upsert({
                 id: 1,
@@ -672,14 +720,14 @@ async function saveLetterboxdReviews(reviews, username) {
         // If username is provided, get existing reviews for this user to preserve is_selected status
         let existingReviews = [];
         if (username) {
-            const { data } = await supabase
+            const { data } = await supabaseClient
                 .from('letterboxd_reviews')
                 .select('review_url, is_selected')
                 .eq('letterboxd_username', username);
             existingReviews = data || [];
         } else {
             // Fallback: get all existing reviews (for backward compatibility)
-            const { data } = await supabase
+            const { data } = await supabaseClient
                 .from('letterboxd_reviews')
                 .select('review_url, is_selected');
             existingReviews = data || [];
@@ -700,7 +748,7 @@ async function saveLetterboxdReviews(reviews, username) {
         
         // If username is provided, delete old reviews from different users first
         if (username) {
-            const { error: deleteError } = await supabase
+            const { error: deleteError } = await supabaseClient
                 .from('letterboxd_reviews')
                 .delete()
                 .neq('letterboxd_username', username);
@@ -712,7 +760,7 @@ async function saveLetterboxdReviews(reviews, username) {
         }
         
         // Upsert reviews (insert or update if review_url exists)
-        const { error } = await supabase
+        const { error } = await supabaseClient
             .from('letterboxd_reviews')
             .upsert(reviewsToSave, {
                 onConflict: 'review_url',
@@ -733,7 +781,7 @@ async function saveLetterboxdReviews(reviews, username) {
 
 async function loadLetterboxdReviews(username) {
     try {
-        let query = supabase
+        let query = supabaseClient
             .from('letterboxd_reviews')
             .select('*');
         
@@ -763,7 +811,7 @@ async function updateReviewSelection(reviewId, isSelected) {
     }
 
     try {
-        const { error } = await supabase
+        const { error } = await supabaseClient
             .from('letterboxd_reviews')
             .update({ is_selected: isSelected })
             .eq('id', reviewId);
@@ -778,7 +826,7 @@ async function updateReviewSelection(reviewId, isSelected) {
 
 async function fetchPlaylistSettings() {
     try {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
             .from('playlist_settings')
             .select('playlist_url, playlist_type')
             .eq('id', 1)
@@ -814,9 +862,9 @@ async function savePlaylistUrl(url, type) {
     }
 
     try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user } } = await supabaseClient.auth.getUser();
         
-        const { error } = await supabase
+        const { error } = await supabaseClient
             .from('playlist_settings')
             .upsert({
                 id: 1,
@@ -1391,7 +1439,7 @@ async function createPost(content, tag) {
             insertData.tag = cleanTag;
         }
         
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
             .from('posts')
             .insert(insertData)
             .select();
@@ -1400,7 +1448,7 @@ async function createPost(content, tag) {
             // If tag column doesn't exist, try without it
             if (error.message && error.message.includes("Could not find the 'tag' column")) {
                 delete insertData.tag;
-                const { data: fallbackData, error: fallbackError } = await supabase
+                const { data: fallbackData, error: fallbackError } = await supabaseClient
                     .from('posts')
                     .insert(insertData)
                     .select();
@@ -1423,7 +1471,7 @@ async function deletePost(postId) {
     }
 
     try {
-        const { error } = await supabase
+        const { error } = await supabaseClient
             .from('posts')
             .delete()
             .eq('id', postId);
@@ -1444,7 +1492,7 @@ async function likePost(postId, currentLikes) {
         // Convert postId to number if it's a string (database function expects bigint)
         const postIdNum = typeof postId === 'string' ? parseInt(postId, 10) : postId;
         
-        const { data, error } = await supabase.rpc('increment_post_likes', {
+        const { data, error } = await supabaseClient.rpc('increment_post_likes', {
             post_id: postIdNum
         });
 
@@ -1462,7 +1510,7 @@ async function likePost(postId, currentLikes) {
 
 async function createSuggestion(content) {
     try {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
             .from('suggestions')
             .insert({
                 content: content,
@@ -1485,7 +1533,7 @@ async function deleteSuggestion(suggestionId) {
     }
 
     try {
-        const { error } = await supabase
+        const { error } = await supabaseClient
             .from('suggestions')
             .delete()
             .eq('id', suggestionId);
@@ -1506,7 +1554,7 @@ async function approveSuggestion(suggestionId, content) {
 
     try {
         // Create post from suggestion with "suggestion" tag
-        const { data: postData, error: postError } = await supabase
+        const { data: postData, error: postError } = await supabaseClient
             .from('posts')
             .insert({
                 content: content,
@@ -1520,7 +1568,7 @@ async function approveSuggestion(suggestionId, content) {
             console.error('Error creating post from suggestion:', postError);
             // If tag column doesn't exist, try without it (backward compatibility)
             if (postError.message && postError.message.includes('column') && postError.message.includes('tag')) {
-                const { data: fallbackData, error: fallbackError } = await supabase
+                const { data: fallbackData, error: fallbackError } = await supabaseClient
                     .from('posts')
                     .insert({
                         content: content,
@@ -1536,7 +1584,7 @@ async function approveSuggestion(suggestionId, content) {
         }
 
         // Delete the suggestion
-        const { error: deleteError } = await supabase
+        const { error: deleteError } = await supabaseClient
             .from('suggestions')
             .delete()
             .eq('id', suggestionId);
@@ -1559,7 +1607,7 @@ function formatDate(timestamp) {
     const date = new Date(timestamp);
     const options = { 
         year: 'numeric', 
-        month: 'long', 
+        month: 'short', 
         day: 'numeric',
         hour: 'numeric',
         minute: '2-digit'
@@ -1679,7 +1727,24 @@ function escapeHtml(text) {
 // ============================================
 
 async function checkAuthState() {
-    const { data: { session } } = await supabase.auth.getSession();
+    if (!supabaseClient) {
+        console.error('Cannot check auth state: supabase is not initialized');
+        updateAppStatus('error: cannot check auth - supabase not initialized', 'error');
+        // Still try to load public data
+        try {
+            const data = await fetchData();
+            posts = data.posts;
+            suggestions = data.suggestions;
+            renderPosts();
+            updateTagSuggestions();
+        } catch (error) {
+            console.error('Failed to load public data:', error);
+            updateAppStatus(`error: failed to load data - ${error.message || 'unknown error'}`, 'error');
+        }
+        return;
+    }
+    
+    const { data: { session } } = await supabaseClient.auth.getSession();
     isAuthenticated = !!session;
     updateUIForAuth();
     
@@ -1692,12 +1757,19 @@ async function checkAuthState() {
     
     if (isAuthenticated) {
         // Load data when authenticated
+        updateAppStatus('loading data...', 'info');
+        try {
         const data = await fetchData();
         posts = data.posts;
         suggestions = data.suggestions;
         renderPosts();
         renderInbox();
         updateTagSuggestions();
+            updateAppStatus(`loaded ${posts.length} posts, ${suggestions.length} suggestions`, 'info');
+        } catch (error) {
+            console.error('Error loading data:', error);
+            updateAppStatus(`error loading data: ${error.message || 'unknown error'}`, 'error');
+        }
         
         // Load playlist settings into inputs for admin
         if (playlistUrl) {
@@ -1725,11 +1797,18 @@ async function checkAuthState() {
         renderLetterboxdReviews();
     } else {
         // Load public data
+        updateAppStatus('loading public data...', 'info');
+        try {
         const data = await fetchData();
         posts = data.posts;
         suggestions = data.suggestions;
         renderPosts();
         updateTagSuggestions();
+            updateAppStatus(`loaded ${posts.length} posts`, 'info');
+        } catch (error) {
+            console.error('Error loading public data:', error);
+            updateAppStatus(`error loading data: ${error.message || 'unknown error'}`, 'error');
+        }
     }
     
     // Set up real-time subscriptions
@@ -1857,7 +1936,7 @@ async function authenticate() {
     }
     
     try {
-        const { data, error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabaseClient.auth.signInWithPassword({
             email: email,
             password: password
         });
@@ -1900,7 +1979,7 @@ async function authenticate() {
 }
 
 async function signOut() {
-    await supabase.auth.signOut();
+    await supabaseClient.auth.signOut();
     isAuthenticated = false;
     
     // Clean up real-time subscriptions
@@ -1928,7 +2007,7 @@ function setupRealtimeSubscriptions() {
     cleanupRealtimeSubscriptions();
     
     // Subscribe to posts changes
-    const postsChannel = supabase
+    const postsChannel = supabaseClient
         .channel('posts-changes')
         .on('postgres_changes', 
             { event: 'INSERT', schema: 'public', table: 'posts' },
@@ -1972,7 +2051,7 @@ function setupRealtimeSubscriptions() {
         });
     
     // Subscribe to suggestions changes
-    const suggestionsChannel = supabase
+    const suggestionsChannel = supabaseClient
         .channel('suggestions-changes')
         .on('postgres_changes',
             { event: 'INSERT', schema: 'public', table: 'suggestions' },
@@ -2008,7 +2087,7 @@ function setupRealtimeSubscriptions() {
 
 function cleanupRealtimeSubscriptions() {
     realtimeChannels.forEach(channel => {
-        supabase.removeChannel(channel);
+        supabaseClient.removeChannel(channel);
     });
     realtimeChannels = [];
 }
@@ -2169,17 +2248,27 @@ async function handleCreatePost() {
     
     if (!content) return;
     
+    // Set flag to prevent blur handler from interfering during submit
+    if (elements.writePanel) {
+        elements.writePanel._isSubmitting = true;
+    }
+    
     elements.postSubmit.textContent = '...';
     elements.postSubmit.disabled = true;
     
-    // Remove fullscreen mode when submitting
-    if (elements.writePanel) {
+    // Remove fullscreen mode when submitting - use the proper exit function
+    if (elements.writePanel && elements.writePanel.exitFullscreen) {
+        elements.writePanel.exitFullscreen();
+    } else if (elements.writePanel) {
+        // Fallback cleanup if exitFullscreen isn't available
         const scrollY = elements.writePanel._savedScrollY || 0;
         elements.writePanel.classList.remove('write-panel-fullscreen');
-        // Remove scroll prevention class
-        document.documentElement.classList.remove('fullscreen-open');
-        document.body.classList.remove('fullscreen-open');
-        document.body.style.top = '';
+        document.documentElement.classList.remove('panel-fullscreen-mode');
+        document.body.classList.remove('panel-fullscreen-mode');
+        document.body.style.setProperty('overflow', 'auto', 'important');
+        document.documentElement.style.setProperty('overflow', 'auto', 'important');
+        document.body.style.setProperty('background', 'var(--bg)', 'important');
+        document.documentElement.style.setProperty('background', 'var(--bg)', 'important');
         disableScrollPrevention();
         window.scrollTo(0, scrollY);
         elements.writePanel._savedScrollY = null;
@@ -2203,6 +2292,16 @@ async function handleCreatePost() {
         // Update tag suggestions to include new post's tag
         updateTagSuggestions();
         // Real-time subscription will handle the update automatically
+        
+        // Switch back to feed tab after posting
+        if (isAuthenticated) {
+            switchTab('feed');
+        }
+    }
+    
+    // Clear submitting flag
+    if (elements.writePanel) {
+        elements.writePanel._isSubmitting = false;
     }
     
     elements.postSubmit.textContent = 'post';
@@ -2298,20 +2397,17 @@ async function handleCreateSuggestion() {
     
     if (!content) return;
     
+    // Set flag to prevent blur handler from interfering
+    if (elements.suggestPanel) {
+        elements.suggestPanel._isSubmitting = true;
+    }
+    
     elements.suggestSubmit.textContent = '...';
     elements.suggestSubmit.disabled = true;
     
-    // Remove fullscreen mode when submitting
-    if (elements.suggestPanel) {
-        const scrollY = elements.suggestPanel._savedScrollY || 0;
-        elements.suggestPanel.classList.remove('suggest-panel-fullscreen');
-        // Remove scroll prevention class
-        document.documentElement.classList.remove('fullscreen-open');
-        document.body.classList.remove('fullscreen-open');
-        document.body.style.top = '';
-        disableScrollPrevention();
-        window.scrollTo(0, scrollY);
-        elements.suggestPanel._savedScrollY = null;
+    // Remove fullscreen mode when submitting - use the proper exit function
+    if (elements.suggestPanel && elements.suggestPanel.exitFullscreen) {
+        elements.suggestPanel.exitFullscreen();
     }
     
     const newSuggestion = await createSuggestion(content);
@@ -2332,6 +2428,11 @@ async function handleCreateSuggestion() {
     }
     
     elements.suggestSubmit.disabled = false;
+    
+    // Clear submitting flag
+    if (elements.suggestPanel) {
+        elements.suggestPanel._isSubmitting = false;
+    }
 }
 
 // ============================================
@@ -2581,6 +2682,10 @@ function setupEventListeners() {
     });
     
     // Status toggle - click "offline" to sign in, click "online" to sign out
+    if (!elements.statusToggle) {
+        console.error('statusToggle element not found');
+        return;
+    }
     elements.statusToggle.addEventListener('click', () => {
         if (!isAuthenticated) {
             // Clicking "offline" - show auth panel
@@ -2598,44 +2703,59 @@ function setupEventListeners() {
     });
     
     // Auth submit
-    elements.authSubmit.addEventListener('click', authenticate);
-    elements.passwordInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') authenticate();
-    });
-    elements.emailInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') authenticate();
-    });
+    if (elements.authSubmit) {
+        elements.authSubmit.addEventListener('click', authenticate);
+    }
+    if (elements.passwordInput) {
+        elements.passwordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') authenticate();
+        });
+    }
+    if (elements.emailInput) {
+        elements.emailInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') authenticate();
+        });
+    }
     
     // Post submit
-    elements.postSubmit.addEventListener('click', handleCreatePost);
-    elements.postContent.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && e.metaKey) handleCreatePost();
-    });
-    elements.postTag.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            handleCreatePost();
-        }
-    });
+    if (elements.postSubmit) {
+        elements.postSubmit.addEventListener('click', handleCreatePost);
+    }
+    if (elements.postContent) {
+        elements.postContent.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.metaKey) handleCreatePost();
+        });
+    }
+    if (elements.postTag) {
+        elements.postTag.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                handleCreatePost();
+            }
+        });
+    }
     
     // Close button handler for write panel
     if (elements.writePanelClose) {
         elements.writePanelClose.addEventListener('click', () => {
+            // Use the proper exitFullscreen function if available (set up later in fullscreen setup)
+            if (elements.writePanel && elements.writePanel.exitFullscreen) {
+                elements.writePanel.exitFullscreen();
+            } else {
+                // Fallback for when exitFullscreen isn't set up yet
             const scrollY = elements.writePanel._savedScrollY || 0;
             elements.writePanel.classList.remove('write-panel-fullscreen');
-            // Restore sticky class
             if (isAuthenticated) {
                 elements.writePanel.classList.add('write-panel-sticky');
             }
-            // Remove scroll prevention class
-            document.documentElement.classList.remove('fullscreen-open');
-            document.body.classList.remove('fullscreen-open');
+                document.body.classList.remove('panel-fullscreen-mode');
+                document.body.style.overflow = '';
+                document.body.style.position = '';
+                document.body.style.width = '';
             document.body.style.top = '';
-            disableScrollPrevention();
-            elements.writePanel.style.removeProperty('height');
-            elements.writePanel.style.removeProperty('top');
             window.scrollTo(0, scrollY);
             elements.writePanel._savedScrollY = null;
+            }
             // Blur any focused inputs
             if (document.activeElement === elements.postContent || document.activeElement === elements.postTag) {
                 document.activeElement.blur();
@@ -2643,218 +2763,433 @@ function setupEventListeners() {
         });
     }
     
-    // Fullscreen panel on mobile when input is focused
+    // Fullscreen panel on mobile when input is focused - treat as separate page
     if (elements.postContent && elements.writePanel) {
-        let heightUpdateHandler = null;
+        let viewportHandler = null;
         
-        const enterFullscreen = () => {
-            if (window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/9c27437d-89e3-443e-a630-d9c29e767acb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app.js:2613',message:'enterFullscreen called',data:{wasFullscreen:elements.writePanel.classList.contains('write-panel-fullscreen')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-                // #endregion
-                // Remove sticky positioning first to avoid glitchy transition
-                elements.writePanel.classList.remove('write-panel-sticky');
-                elements.writePanel.classList.add('write-panel-fullscreen');
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/9c27437d-89e3-443e-a630-d9c29e767acb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app.js:2619',message:'After adding fullscreen class',data:{hasFullscreenClass:elements.writePanel.classList.contains('write-panel-fullscreen')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-                // #endregion
-                // Prevent background scrolling using CSS class
-                const scrollY = window.scrollY;
-                elements.writePanel._savedScrollY = scrollY;
-                document.documentElement.classList.add('fullscreen-open');
-                document.body.classList.add('fullscreen-open');
-                document.body.style.top = `-${scrollY}px`;
-                enableScrollPrevention();
-                
-                // Use visual viewport height to account for keyboard
-                const updateHeight = () => {
-                    if (elements.writePanel.classList.contains('write-panel-fullscreen')) {
+        const updatePanelSize = () => {
+            if (!elements.writePanel.classList.contains('write-panel-fullscreen')) return;
+            
                         if (window.visualViewport) {
                             // Use visual viewport height (space above keyboard)
-                            // Account for safe area at top
-                            const safeAreaTop = parseInt(getComputedStyle(document.documentElement).getPropertyValue('env(safe-area-inset-top)') || '0', 10) || 0;
-                            elements.writePanel.style.height = `${window.visualViewport.height + safeAreaTop}px`;
-                            elements.writePanel.style.top = `${window.visualViewport.offsetTop - safeAreaTop}px`;
+                const viewportHeight = window.visualViewport.height;
+                const viewportTop = window.visualViewport.offsetTop || 0;
+                
+                // Set panel to fill visible viewport above keyboard
+                // Use box-sizing: border-box so padding is included in height
+                // IMPORTANT: The height includes padding, so content area is smaller
+                // Buttons must be visible, so textarea will scroll if needed
+                elements.writePanel.style.setProperty('height', `${viewportHeight}px`, 'important');
+                elements.writePanel.style.top = `${viewportTop}px`;
+                elements.writePanel.style.bottom = '';
+                // Override min-height from CSS to use exact viewport height (with !important)
+                elements.writePanel.style.setProperty('min-height', `${viewportHeight}px`, 'important');
+                elements.writePanel.style.setProperty('max-height', `${viewportHeight}px`, 'important');
+                // Ensure buttons are visible by using flexbox properly
+                elements.writePanel.style.display = 'flex';
+                elements.writePanel.style.flexDirection = 'column';
+                // Ensure buttons container is always visible
+                const actionsEl = elements.writePanel.querySelector('.write-actions');
+                if (actionsEl) {
+                    actionsEl.style.flexShrink = '0';
+                    actionsEl.style.flexGrow = '0';
+                    actionsEl.style.marginTop = 'auto';
+                    actionsEl.style.visibility = 'visible';
+                    actionsEl.style.display = 'flex';
+                }
+                
+                // Force a reflow to ensure styles are applied
+                void elements.writePanel.offsetHeight;
                         } else {
-                            // Fallback to window inner height
+                // Fallback
                             elements.writePanel.style.height = `${window.innerHeight}px`;
                             elements.writePanel.style.top = '0px';
                         }
+        };
+        
+        const enterFullscreen = () => {
+            if (window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+                
+                // Save scroll position
+                const scrollY = window.scrollY;
+                elements.writePanel._savedScrollY = scrollY;
+                
+                // Hide all main content
+                document.documentElement.classList.add('panel-fullscreen-mode');
+                document.body.classList.add('panel-fullscreen-mode');
+                
+                // Remove sticky, add fullscreen class
+                elements.writePanel.classList.remove('write-panel-sticky');
+                elements.writePanel.classList.add('write-panel-fullscreen');
+                
+                // Clear any inline styles from previous sticky positioning before applying fullscreen
+                elements.writePanel.style.bottom = '';
+                elements.writePanel.style.left = '';
+                elements.writePanel.style.right = '';
+                elements.writePanel.style.transform = '';
+                elements.writePanel.style.width = '';
+                elements.writePanel.style.maxWidth = '';
+                // Set top to 0 immediately to ensure proper positioning
+                elements.writePanel.style.top = '0px';
+                
+                // CRITICAL: Remove allowScrollFirst listener if it exists (from previous exit)
+                // This MUST be removed completely or it will interfere with scroll prevention
+                if (elements.writePanel._allowScrollFirst) {
+                    const allowScroll = elements.writePanel._allowScrollFirst;
+                    // Remove from all possible locations with all possible options
+                    try {
+                        document.removeEventListener('touchmove', allowScroll, { capture: true });
+                        document.removeEventListener('touchmove', allowScroll, { capture: false });
+                        document.removeEventListener('touchmove', allowScroll);
+                        document.body.removeEventListener('touchmove', allowScroll, { capture: true });
+                        document.body.removeEventListener('touchmove', allowScroll, { capture: false });
+                        document.body.removeEventListener('touchmove', allowScroll);
+                        window.removeEventListener('touchmove', allowScroll, { capture: true });
+                        window.removeEventListener('touchmove', allowScroll, { capture: false });
+                        window.removeEventListener('touchmove', allowScroll);
+                    } catch (e) {
+                        // Ignore errors
                     }
-                };
-                
-                updateHeight();
-                
-                // Listen for viewport changes (keyboard appearing/disappearing)
-                if (window.visualViewport) {
-                    heightUpdateHandler = updateHeight;
-                    window.visualViewport.addEventListener('resize', heightUpdateHandler);
-                    window.visualViewport.addEventListener('scroll', heightUpdateHandler);
-                } else {
-                    window.addEventListener('resize', updateHeight);
+                    elements.writePanel._allowScrollFirst = null;
                 }
+                // Force a small delay to ensure removal is complete
+                void document.body.offsetHeight;
                 
-                // Clean up listener when panel exits fullscreen
-                const observer = new MutationObserver(() => {
-                    if (!elements.writePanel.classList.contains('write-panel-fullscreen')) {
-                        if (window.visualViewport && heightUpdateHandler) {
-                            window.visualViewport.removeEventListener('resize', heightUpdateHandler);
-                            window.visualViewport.removeEventListener('scroll', heightUpdateHandler);
-                        } else {
-                            window.removeEventListener('resize', updateHeight);
-                        }
-                        // Restore scroll position
-                        const scrollY = elements.writePanel._savedScrollY || 0;
-                        // Remove scroll prevention class
-                        document.documentElement.classList.remove('fullscreen-open');
-                        document.body.classList.remove('fullscreen-open');
-                        document.body.style.top = '';
-                        disableScrollPrevention();
-                        elements.writePanel.style.removeProperty('height');
-                        elements.writePanel.style.removeProperty('top');
-                        // Restore scroll position
-                        window.scrollTo(0, scrollY);
-                        elements.writePanel._savedScrollY = null;
-                        // Restore sticky class when exiting fullscreen
-                        if (isAuthenticated) {
-                            elements.writePanel.classList.add('write-panel-sticky');
-                        }
-                        heightUpdateHandler = null;
-                        observer.disconnect();
+                // Scroll prevention using inline styles with !important for reliability
+                // Don't use position: fixed to avoid layout shifts
+                document.body.style.setProperty('overflow', 'hidden', 'important');
+                document.documentElement.style.setProperty('overflow', 'hidden', 'important');
+                
+                // Set pink background on body/html to cover keyboard toolbar area
+                document.body.style.setProperty('background', 'rgba(255, 245, 250, 1)', 'important');
+                document.documentElement.style.setProperty('background', 'rgba(255, 245, 250, 1)', 'important');
+                
+                // Prevent scroll events
+                const preventScroll = (e) => {
+                    if (e.target.tagName !== 'TEXTAREA') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return false;
                     }
-                });
-                observer.observe(elements.writePanel, { attributes: true, attributeFilter: ['class'] });
-                
-                // Scroll to top to ensure panel is visible
-                window.scrollTo(0, 0);
-                
-                // Track scroll events to debug scrolling issue
-                const scrollHandler = () => {
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/9c27437d-89e3-443e-a630-d9c29e767acb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app.js:2678',message:'Scroll detected in fullscreen write',data:{scrollY:window.scrollY,bodyPosition:document.body.style.position,bodyOverflow:document.body.style.overflow,isFullscreen:elements.writePanel.classList.contains('write-panel-fullscreen')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-                    // #endregion
                 };
-                window.addEventListener('scroll', scrollHandler, { passive: true });
+                document.addEventListener('touchmove', preventScroll, { passive: false, capture: true });
+                document.addEventListener('wheel', preventScroll, { passive: false, capture: true });
+                document.addEventListener('scroll', preventScroll, { passive: false, capture: true });
+                elements.writePanel._preventScroll = preventScroll;
                 
-                // Store handler for cleanup
-                if (!elements.writePanel._scrollHandler) {
-                    elements.writePanel._scrollHandler = scrollHandler;
+                // Set initial size
+                updatePanelSize();
+                
+                // Update when keyboard appears/disappears
+                if (window.visualViewport) {
+                    viewportHandler = () => {
+                        updatePanelSize();
+                    };
+                    window.visualViewport.addEventListener('resize', viewportHandler);
+                    window.visualViewport.addEventListener('scroll', viewportHandler);
                 }
             }
         };
         
-        // Use click/touchstart to enter fullscreen, then focus
-        const handleInputInteraction = (e) => {
-            enterFullscreen();
-            // Call focus() synchronously to maintain user interaction chain for mobile keyboard
-            elements.postContent.focus();
+        const exitFullscreen = () => {
+            // Check if we already exited or never entered (prevent double-calls)
+            // Also check if panel is actually in fullscreen mode
+            const wasFullscreen = elements.writePanel.classList.contains('write-panel-fullscreen');
+            if (elements.writePanel._savedScrollY == null && !wasFullscreen) {
+                // But still ensure scroll is restored if it was hidden
+                if (document.body.style.overflow === 'hidden' || document.body.style.overflow === '') {
+                    document.body.style.setProperty('overflow', 'auto', 'important');
+                    document.documentElement.style.setProperty('overflow', 'auto', 'important');
+                }
+                return;
+            }
+            
+            // If _savedScrollY is null but panel is still in fullscreen, use current scroll position
+            if (elements.writePanel._savedScrollY == null) {
+                elements.writePanel._savedScrollY = window.scrollY || 0;
+            }
+            
+            // Get saved scroll position FIRST, before any cleanup
+            const scrollY = elements.writePanel._savedScrollY || 0;
+            elements.writePanel._savedScrollY = null; // Clear immediately to prevent double-calls
+            
+            // CRITICAL: Add allowScrollFirst FIRST (before removing preventScroll)
+            // This ensures it runs before any other listeners and allows scrolling
+            const allowScrollFirst = (e) => {
+                const target = e.target;
+                // Allow scrolling on the main page content, but not on inputs/textareas
+                if (target.tagName !== 'TEXTAREA' && 
+                    target.tagName !== 'INPUT' && 
+                    !target.closest('textarea') && 
+                    !target.closest('input')) {
+                    // For main page content, stop propagation so other listeners don't prevent scroll
+                    e.stopImmediatePropagation();
+                    // Don't prevent default - let the scroll happen
+                }
+            };
+            // Add FIRST with highest priority (capture phase)
+            document.addEventListener('touchmove', allowScrollFirst, { passive: false, capture: true });
+            document.body.addEventListener('touchmove', allowScrollFirst, { passive: false, capture: true });
+            window.addEventListener('touchmove', allowScrollFirst, { passive: false, capture: true });
+            elements.writePanel._allowScrollFirst = allowScrollFirst;
+            
+            // NOW remove scroll prevention (after allowScrollFirst is in place)
+            if (elements.writePanel._preventScroll) {
+                const preventScroll = elements.writePanel._preventScroll;
+                document.body.removeEventListener('touchmove', preventScroll, { capture: true });
+                document.removeEventListener('touchmove', preventScroll, { capture: true });
+                window.removeEventListener('touchmove', preventScroll, { capture: true });
+                document.removeEventListener('wheel', preventScroll, { capture: true });
+                document.removeEventListener('scroll', preventScroll, { capture: true });
+                elements.writePanel._preventScroll = null;
+            }
+            
+            // CRITICAL: Also disable the global scroll prevention system if it's enabled
+            if (typeof disableScrollPrevention === 'function') {
+                disableScrollPrevention();
+                disableScrollPrevention(); // Call it again to be sure
+            }
+            
+            // Remove viewport listener
+            if (viewportHandler && window.visualViewport) {
+                window.visualViewport.removeEventListener('resize', viewportHandler);
+                window.visualViewport.removeEventListener('scroll', viewportHandler);
+                viewportHandler = null;
+            }
+            
+            // Remove fullscreen mode from body/html FIRST (before panel changes)
+            document.documentElement.classList.remove('panel-fullscreen-mode');
+            document.body.classList.remove('panel-fullscreen-mode');
+            
+            // CRITICAL: Explicitly reset body/html backgrounds BEFORE removing panel class
+            // This ensures the pink safe areas disappear immediately
+            // Also reset any ::before pseudo-elements by forcing a reflow
+            document.body.style.setProperty('background', 'var(--bg)', 'important');
+            document.documentElement.style.setProperty('background', 'var(--bg)', 'important');
+            // Remove any inline styles that might be causing pink backgrounds
+            document.body.style.removeProperty('background-color');
+            document.documentElement.style.removeProperty('background-color');
+            // Force reflow to apply background changes and remove pseudo-elements
+            void document.body.offsetHeight;
+            // Use requestAnimationFrame to ensure CSS pseudo-elements update
+            requestAnimationFrame(() => {
+                document.body.style.setProperty('background', 'var(--bg)', 'important');
+                document.documentElement.style.setProperty('background', 'var(--bg)', 'important');
+            });
+            
+            // Remove fullscreen class, restore sticky
+            // Toggle the class off and on to force CSS pseudo-elements to update
+                    elements.writePanel.classList.remove('write-panel-fullscreen');
+            // Force a reflow to ensure CSS pseudo-elements are removed
+            void elements.writePanel.offsetHeight;
+            // Add a temporary class to force re-render, then remove it
+            elements.writePanel.classList.add('write-panel-temp');
+            void elements.writePanel.offsetHeight;
+            elements.writePanel.classList.remove('write-panel-temp');
+                        elements.writePanel.classList.add('write-panel-sticky');
+            
+            // Ensure the panel background is correct for sticky mode
+            elements.writePanel.style.setProperty('background', 'rgba(255, 245, 250, 0.95)', 'important');
+            
+            // Force multiple reflows to ensure all CSS updates
+            void document.body.offsetHeight;
+            void elements.writePanel.offsetHeight;
+            void document.documentElement.offsetHeight;
+            
+            // Final check: ensure no pink backgrounds remain
+            requestAnimationFrame(() => {
+                document.body.style.setProperty('background', 'var(--bg)', 'important');
+                document.documentElement.style.setProperty('background', 'var(--bg)', 'important');
+            });
+            
+            // Force sticky positioning with inline styles
+            // Clear ALL fullscreen styles first
+            elements.writePanel.style.height = '';
+            elements.writePanel.style.minHeight = '';
+            elements.writePanel.style.maxHeight = '';
+            elements.writePanel.style.top = '';
+            elements.writePanel.style.bottom = '';
+            elements.writePanel.style.left = '';
+            elements.writePanel.style.right = '';
+            elements.writePanel.style.transform = '';
+            elements.writePanel.style.width = '';
+            elements.writePanel.style.maxWidth = '';
+            elements.writePanel.style.display = '';
+            // Force reflow to clear styles
+            void elements.writePanel.offsetHeight;
+            // Now set sticky styles
+            elements.writePanel.style.position = 'fixed';
+            elements.writePanel.style.bottom = 'calc(1.5rem + env(safe-area-inset-bottom, 0px))';
+            elements.writePanel.style.left = '50%';
+            elements.writePanel.style.transform = 'translateX(-50%)';
+            elements.writePanel.style.top = 'auto';
+            elements.writePanel.style.right = 'auto';
+            elements.writePanel.style.width = 'calc(100% - 4rem)';
+            elements.writePanel.style.maxWidth = 'calc(var(--max-width) - 2rem)';
+            
+            // Remove ALL inline styles that could possibly affect scrolling
+            document.body.style.removeProperty('overflow');
+            document.body.style.removeProperty('overflow-x');
+            document.body.style.removeProperty('overflow-y');
+            document.body.style.removeProperty('position');
+            document.body.style.removeProperty('top');
+            document.body.style.removeProperty('left');
+            document.body.style.removeProperty('width');
+            document.body.style.removeProperty('height');
+            document.body.style.removeProperty('max-height');
+            document.body.style.removeProperty('overscroll-behavior');
+            document.body.style.removeProperty('touch-action');
+            document.body.style.removeProperty('pointer-events');
+            document.documentElement.style.removeProperty('overflow');
+            document.documentElement.style.removeProperty('overflow-x');
+            document.documentElement.style.removeProperty('overflow-y');
+            document.documentElement.style.removeProperty('height');
+            document.documentElement.style.removeProperty('max-height');
+            document.documentElement.style.removeProperty('overscroll-behavior');
+            document.documentElement.style.removeProperty('touch-action');
+            document.documentElement.style.removeProperty('pointer-events');
+            
+            // CRITICAL FIX: Set overflow to auto to fully restore scrolling
+            document.body.style.setProperty('overflow', 'auto', 'important');
+            document.documentElement.style.setProperty('overflow', 'auto', 'important');
+            
+            // Force multiple reflows to ensure iOS Safari recognizes scroll is enabled
+            void document.body.offsetHeight;
+            void document.documentElement.offsetHeight;
+            document.body.style.transform = 'translateZ(0)';
+            void document.body.offsetHeight;
+            document.body.style.removeProperty('transform');
+            
+            // Force multiple reflows to ensure styles are applied
+            void document.body.offsetHeight;
+            void document.documentElement.offsetHeight;
+            
+            // Restore scroll position immediately
+            window.scrollTo(0, scrollY);
         };
         
-        elements.postContent.addEventListener('focus', (e) => {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/9c27437d-89e3-443e-a630-d9c29e767acb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app.js:2697',message:'Focus event fired',data:{isFullscreen:elements.writePanel.classList.contains('write-panel-fullscreen')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-            // #endregion
-            enterFullscreen();
+        // Make exitFullscreen available on the panel element
+        elements.writePanel.exitFullscreen = exitFullscreen;
+        
+        // Flag to prevent blur from exiting when clicking to enter
+        let isClickingToEnter = false;
+        
+        // Focus handler - enters fullscreen when textarea is focused
+        elements.postContent.addEventListener('focus', () => {
+            // Only enter fullscreen if not already in fullscreen
+            if (!elements.writePanel.classList.contains('write-panel-fullscreen')) {
+                enterFullscreen();
+            }
         });
-        elements.postContent.addEventListener('click', handleInputInteraction);
-        elements.postContent.addEventListener('touchstart', handleInputInteraction);
+        
+        // Click handler - ensure focus happens and prevent blur from exiting
+        elements.postContent.addEventListener('click', (e) => {
+            // Set flag to prevent blur from exiting
+            isClickingToEnter = true;
+            // Let the natural click behavior focus the textarea
+            // The focus event will handle entering fullscreen
+            setTimeout(() => {
+                // Ensure focus happened
+                if (document.activeElement !== elements.postContent) {
+                    elements.postContent.focus();
+                }
+            }, 10);
+            // Reset flag after delay
+            setTimeout(() => {
+                isClickingToEnter = false;
+            }, 500);
+        });
+        
+        elements.postContent.addEventListener('touchstart', (e) => {
+            // Set flag to prevent blur from exiting
+            isClickingToEnter = true;
+            // Let the natural touchstart behavior focus the textarea
+            setTimeout(() => {
+                isClickingToEnter = false;
+            }, 500);
+        });
+        
+        // Also handle clicks on the panel itself (for sticky panel clicks)
+        elements.writePanel.addEventListener('click', (e) => {
+            const target = e.target;
+            // Don't interfere with button clicks
+            if (target.tagName === 'BUTTON' || target.closest('button')) {
+                return;
+            }
+            // If clicking anywhere in the panel (not a button), focus the textarea
+            if (target === elements.postContent || 
+                target.closest('textarea') === elements.postContent ||
+                (target.closest('.write-panel') === elements.writePanel && !target.closest('button'))) {
+                // Set flag to prevent blur from exiting fullscreen
+                isClickingToEnter = true;
+                // Focus the textarea immediately - this should trigger focus event
+                elements.postContent.focus();
+                // Also ensure focus happens after a tiny delay
+                setTimeout(() => {
+                    if (document.activeElement !== elements.postContent) {
+                        elements.postContent.focus();
+                    }
+                }, 10);
+                // Keep flag set longer to prevent blur from exiting
+                setTimeout(() => {
+                    isClickingToEnter = false;
+                }, 500);
+            }
+        }, true); // Use capture phase to catch it early
         
         elements.postContent.addEventListener('blur', () => {
-            // Delay to allow submit button clicks to work
+            // Delay to allow submit button clicks to work and keyboard to appear
             setTimeout(() => {
-                if (document.activeElement !== elements.postTag) {
-                    // Restore scroll position
-                    const scrollY = elements.writePanel._savedScrollY || 0;
-                    elements.writePanel.classList.remove('write-panel-fullscreen');
-                    // Restore sticky class
-                    if (isAuthenticated) {
-                        elements.writePanel.classList.add('write-panel-sticky');
-                    }
-                    // Remove scroll prevention class
-                    document.documentElement.classList.remove('fullscreen-open');
-                    document.body.classList.remove('fullscreen-open');
-                    document.body.style.top = '';
-                    disableScrollPrevention();
-                    elements.writePanel.style.removeProperty('height');
-                    elements.writePanel.style.removeProperty('top');
-                    // Restore scroll position
-                    window.scrollTo(0, scrollY);
-                    elements.writePanel._savedScrollY = null;
+                // Don't exit if we're currently submitting (handleCreatePost will handle it)
+                if (elements.writePanel._isSubmitting) {
+                    return;
                 }
-            }, 200);
+                
+                // Don't exit if user is clicking to re-enter fullscreen
+                if (isClickingToEnter) {
+                    // Don't reset flag here - let the timeout in click handler do it
+                    return;
+                }
+                
+                // Check if textarea is actually focused now (keyboard might have refocused it)
+                if (document.activeElement === elements.postContent) {
+                    return;
+                }
+                
+                // Don't exit if tag input is focused
+                if (document.activeElement === elements.postTag) {
+                    return;
+                }
+                
+                exitFullscreen();
+            }, 300); // Increased delay to allow keyboard to appear
         });
     }
     
     if (elements.postTag && elements.writePanel) {
-        const enterFullscreen = () => {
+        // When tag input is focused, ensure panel is in fullscreen
+        // If panel is not already fullscreen, trigger it by focusing textarea first
+        const ensureFullscreen = () => {
             if (window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
                     if (!elements.writePanel.classList.contains('write-panel-fullscreen')) {
-                        elements.writePanel.classList.add('write-panel-fullscreen');
-                        // Prevent background scrolling using CSS class
-                        const scrollY = window.scrollY;
-                        elements.writePanel._savedScrollY = scrollY;
-                        document.documentElement.classList.add('fullscreen-open');
-                        document.body.classList.add('fullscreen-open');
-                        document.body.style.top = `-${scrollY}px`;
-                        enableScrollPrevention();
-                    
-                    // Use visual viewport height to account for keyboard
-                    const updateHeight = () => {
-                        if (elements.writePanel.classList.contains('write-panel-fullscreen')) {
-                            if (window.visualViewport) {
-                                // Use visual viewport height (space above keyboard)
-                                // Account for safe area at top
-                                const safeAreaTop = parseInt(getComputedStyle(document.documentElement).getPropertyValue('env(safe-area-inset-top)') || '0', 10) || 0;
-                                elements.writePanel.style.height = `${window.visualViewport.height + safeAreaTop}px`;
-                                elements.writePanel.style.top = `${window.visualViewport.offsetTop - safeAreaTop}px`;
-                            } else {
-                                // Fallback to window inner height
-                                elements.writePanel.style.height = `${window.innerHeight}px`;
-                                elements.writePanel.style.top = '0px';
-                            }
-                        }
-                    };
-                    
-                    updateHeight();
-                    
-                    // Listen for viewport changes (keyboard appearing/disappearing)
-                    if (window.visualViewport) {
-                        window.visualViewport.addEventListener('resize', updateHeight);
-                        window.visualViewport.addEventListener('scroll', updateHeight);
-                    } else {
-                        window.addEventListener('resize', updateHeight);
-                    }
-                    
-                    // Scroll to top to ensure panel is visible
-                    window.scrollTo(0, 0);
+                    // Panel not in fullscreen, trigger the main fullscreen logic
+                    // by programmatically triggering focus on textarea
+                    elements.postContent.focus();
+                    // Then immediately focus the tag input
+                    setTimeout(() => {
+            elements.postTag.focus();
+                    }, 50);
                 }
+                // If already fullscreen, the viewport listeners from main handler will keep it updated
             }
         };
         
-        // Use click/touchstart to enter fullscreen, then focus
-        const handleTagInteraction = (e) => {
-            enterFullscreen();
-            // Call focus() synchronously to maintain user interaction chain for mobile keyboard
-            elements.postTag.focus();
-        };
+        elements.postTag.addEventListener('focus', ensureFullscreen);
+        elements.postTag.addEventListener('click', ensureFullscreen);
+        elements.postTag.addEventListener('touchstart', ensureFullscreen);
         
-        elements.postTag.addEventListener('focus', enterFullscreen);
-        elements.postTag.addEventListener('click', handleTagInteraction);
-        elements.postTag.addEventListener('touchstart', handleTagInteraction);
-        
-        elements.postTag.addEventListener('blur', () => {
-            // Only remove if postContent is also not focused
-            setTimeout(() => {
-                if (document.activeElement !== elements.postContent) {
-                    elements.writePanel.classList.remove('write-panel-fullscreen');
-                    document.body.style.overflow = '';
-                    document.body.style.position = '';
-                    document.body.style.width = '';
-                    elements.writePanel.style.height = '';
-                    elements.writePanel.style.top = '';
-                }
-            }, 200);
-        });
+        // No blur handler needed - the main textarea blur handler will handle exiting fullscreen
+        // when both inputs lose focus
     }
     
     // Limit input to 10 characters (excluding #) and resize dynamically
@@ -2882,26 +3217,28 @@ function setupEventListeners() {
     }
     
     // Suggest submit
-    elements.suggestSubmit.addEventListener('click', handleCreateSuggestion);
-    elements.suggestContent.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && e.metaKey) handleCreateSuggestion();
-    });
+    if (elements.suggestSubmit) {
+        elements.suggestSubmit.addEventListener('click', handleCreateSuggestion);
+    }
+    if (elements.suggestContent) {
+        elements.suggestContent.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.metaKey) handleCreateSuggestion();
+        });
+    }
     
     // Close button handler for suggest panel
     if (elements.suggestPanelClose) {
         elements.suggestPanelClose.addEventListener('click', () => {
-            const scrollY = elements.suggestPanel._savedScrollY || 0;
+            // Use the proper exitFullscreen function if available (set up later in fullscreen setup)
+            if (elements.suggestPanel && elements.suggestPanel.exitFullscreen) {
+                elements.suggestPanel.exitFullscreen();
+            } else {
+                // Fallback for when exitFullscreen isn't set up yet
             elements.suggestPanel.classList.remove('suggest-panel-fullscreen');
             elements.suggestPanel.classList.add('suggest-panel-sticky');
-            // Remove scroll prevention class
-            document.documentElement.classList.remove('fullscreen-open');
-            document.body.classList.remove('fullscreen-open');
-            document.body.style.top = '';
-            disableScrollPrevention();
-            elements.suggestPanel.style.removeProperty('height');
-            elements.suggestPanel.style.removeProperty('top');
-            window.scrollTo(0, scrollY);
-            elements.suggestPanel._savedScrollY = null;
+                document.body.classList.remove('panel-fullscreen-mode');
+                document.body.style.overflow = '';
+            }
             elements.suggestContent.value = '';
             if (document.activeElement === elements.suggestContent) {
                 elements.suggestContent.blur();
@@ -2909,207 +3246,568 @@ function setupEventListeners() {
         });
     }
     
-    // Fullscreen panel on mobile when input is focused
+    // Fullscreen panel on mobile when input is focused - treat as separate page
     if (elements.suggestContent && elements.suggestPanel) {
-        let heightUpdateHandler = null;
+        let viewportHandler = null;
         
-        const enterFullscreen = () => {
-            if (window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/9c27437d-89e3-443e-a630-d9c29e767acb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app.js:2880',message:'enterFullscreen called for suggest',data:{wasFullscreen:elements.suggestPanel.classList.contains('suggest-panel-fullscreen')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-                // #endregion
-                // Remove sticky positioning first to avoid glitchy transition
-                elements.suggestPanel.classList.remove('suggest-panel-sticky');
-                elements.suggestPanel.classList.add('suggest-panel-fullscreen');
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/9c27437d-89e3-443e-a630-d9c29e767acb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app.js:2886',message:'After adding fullscreen class for suggest',data:{hasFullscreenClass:elements.suggestPanel.classList.contains('suggest-panel-fullscreen')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-                // #endregion
-                // Prevent background scrolling using CSS class
-                const scrollY = window.scrollY;
-                elements.suggestPanel._savedScrollY = scrollY;
-                document.documentElement.classList.add('fullscreen-open');
-                document.body.classList.add('fullscreen-open');
-                document.body.style.top = `-${scrollY}px`;
-                enableScrollPrevention();
-                
-                // Use visual viewport height to account for keyboard
-                const updateHeight = () => {
-                    if (elements.suggestPanel.classList.contains('suggest-panel-fullscreen')) {
+        const updatePanelSize = () => {
+            if (!elements.suggestPanel.classList.contains('suggest-panel-fullscreen')) return;
+            
                         if (window.visualViewport) {
                             // Use visual viewport height (space above keyboard)
-                            // Account for safe area at top
-                            const safeAreaTop = parseInt(getComputedStyle(document.documentElement).getPropertyValue('env(safe-area-inset-top)') || '0', 10) || 0;
-                            elements.suggestPanel.style.height = `${window.visualViewport.height + safeAreaTop}px`;
-                            elements.suggestPanel.style.top = `${window.visualViewport.offsetTop - safeAreaTop}px`;
+                const viewportHeight = window.visualViewport.height;
+                
+                // Set panel to fill visible viewport above keyboard
+                // Always position at top: 0
+                // Use the full viewport height - the panel will fill it completely
+                // Use box-sizing: border-box so padding is included in height
+                // IMPORTANT: The height includes padding, so content area is smaller
+                // Buttons must be visible, so textarea will scroll if needed
+                elements.suggestPanel.style.setProperty('height', `${viewportHeight}px`, 'important');
+                elements.suggestPanel.style.top = '0px';
+                elements.suggestPanel.style.bottom = '';
+                // Override min-height from CSS to use exact viewport height (with !important)
+                elements.suggestPanel.style.setProperty('min-height', `${viewportHeight}px`, 'important');
+                elements.suggestPanel.style.setProperty('max-height', `${viewportHeight}px`, 'important');
+                // Ensure buttons are visible by using flexbox properly
+                elements.suggestPanel.style.display = 'flex';
+                elements.suggestPanel.style.flexDirection = 'column';
+                // Ensure buttons container is always visible
+                const actionsEl = elements.suggestPanel.querySelector('.suggest-actions');
+                if (actionsEl) {
+                    actionsEl.style.flexShrink = '0';
+                    actionsEl.style.flexGrow = '0';
+                    actionsEl.style.marginTop = 'auto';
+                    actionsEl.style.visibility = 'visible';
+                    actionsEl.style.display = 'flex';
+                }
+                
+                // Force a reflow to ensure styles are applied
+                void elements.suggestPanel.offsetHeight;
                         } else {
-                            // Fallback to window inner height
+                // Fallback
                             elements.suggestPanel.style.height = `${window.innerHeight}px`;
                             elements.suggestPanel.style.top = '0px';
                         }
+        };
+        
+        const enterFullscreen = () => {
+            if (window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+                
+                // Save scroll position
+                const scrollY = window.scrollY;
+                elements.suggestPanel._savedScrollY = scrollY;
+                
+                // Hide all main content
+                document.documentElement.classList.add('panel-fullscreen-mode');
+                document.body.classList.add('panel-fullscreen-mode');
+                
+                // Remove sticky, add fullscreen class
+                elements.suggestPanel.classList.remove('suggest-panel-sticky');
+                elements.suggestPanel.classList.add('suggest-panel-fullscreen');
+                
+                // Clear any inline styles from previous sticky positioning before applying fullscreen
+                elements.suggestPanel.style.bottom = '';
+                elements.suggestPanel.style.left = '';
+                elements.suggestPanel.style.right = '';
+                elements.suggestPanel.style.transform = '';
+                elements.suggestPanel.style.width = '';
+                elements.suggestPanel.style.maxWidth = '';
+                // Set top to 0 immediately to ensure proper positioning
+                elements.suggestPanel.style.top = '0px';
+                
+                // CRITICAL: Remove allowScrollFirst listener if it exists (from previous exit)
+                // This MUST be removed completely or it will interfere with scroll prevention
+                if (elements.suggestPanel._allowScrollFirst) {
+                    const allowScroll = elements.suggestPanel._allowScrollFirst;
+                    // Remove from all possible locations with all possible options
+                    try {
+                        document.removeEventListener('touchmove', allowScroll, { capture: true });
+                        document.removeEventListener('touchmove', allowScroll, { capture: false });
+                        document.removeEventListener('touchmove', allowScroll);
+                        document.body.removeEventListener('touchmove', allowScroll, { capture: true });
+                        document.body.removeEventListener('touchmove', allowScroll, { capture: false });
+                        document.body.removeEventListener('touchmove', allowScroll);
+                        window.removeEventListener('touchmove', allowScroll, { capture: true });
+                        window.removeEventListener('touchmove', allowScroll, { capture: false });
+                        window.removeEventListener('touchmove', allowScroll);
+                    } catch (e) {
+                        // Ignore errors
                     }
-                };
-                
-                updateHeight();
-                
-                // Listen for viewport changes (keyboard appearing/disappearing)
-                if (window.visualViewport) {
-                    heightUpdateHandler = updateHeight;
-                    window.visualViewport.addEventListener('resize', heightUpdateHandler);
-                    window.visualViewport.addEventListener('scroll', heightUpdateHandler);
-                } else {
-                    window.addEventListener('resize', updateHeight);
+                    elements.suggestPanel._allowScrollFirst = null;
                 }
+                // Force a small delay to ensure removal is complete
+                void document.body.offsetHeight;
                 
-                // Clean up listener when panel exits fullscreen
-                const observer = new MutationObserver(() => {
-                    if (!elements.suggestPanel.classList.contains('suggest-panel-fullscreen')) {
-                        if (window.visualViewport && heightUpdateHandler) {
-                            window.visualViewport.removeEventListener('resize', heightUpdateHandler);
-                            window.visualViewport.removeEventListener('scroll', heightUpdateHandler);
-                        } else {
-                            window.removeEventListener('resize', updateHeight);
+                // Scroll prevention using inline styles with !important for reliability
+                // This prevents layout shifts and ensures we can cleanly remove it later
+                document.body.style.setProperty('overflow', 'hidden', 'important');
+                document.documentElement.style.setProperty('overflow', 'hidden', 'important');
+                
+                // Set pink background on body/html to cover keyboard toolbar area
+                document.body.style.setProperty('background', 'rgba(255, 245, 250, 1)', 'important');
+                document.documentElement.style.setProperty('background', 'rgba(255, 245, 250, 1)', 'important');
+                
+                // Scroll prevention - ONLY allow scrolling in TEXTAREA (this was the working solution!)
+                const preventScroll = (e) => {
+                    // Check both target and currentTarget to catch all cases
+                    const target = e.target;
+                    const currentTarget = e.currentTarget;
+                    
+                    // ONLY allow scrolling in textarea - nothing else
+                    // Check if the event is coming from or going to a textarea
+                    const isTextarea = (target && target.tagName === 'TEXTAREA') ||
+                                      (target && target.closest('textarea')) ||
+                                      (currentTarget && currentTarget.tagName === 'TEXTAREA');
+                    
+                    if (isTextarea) {
+                        // Only allow if it's actually the textarea element
+                        if (target && target.tagName === 'TEXTAREA') {
+                            return; // Allow textarea to scroll (keyboard works!)
                         }
-                        // Restore scroll position
-                        const scrollY = elements.suggestPanel._savedScrollY || 0;
-                        // Restore sticky class
-                        elements.suggestPanel.classList.add('suggest-panel-sticky');
-                        // Remove scroll prevention class
-                        document.documentElement.classList.remove('fullscreen-open');
-                        document.body.classList.remove('fullscreen-open');
-                        document.body.style.top = '';
-                        disableScrollPrevention();
-                        elements.suggestPanel.style.removeProperty('height');
-                        elements.suggestPanel.style.removeProperty('top');
-                        window.scrollTo(0, scrollY);
-                        elements.suggestPanel._savedScrollY = null;
-                        heightUpdateHandler = null;
-                        observer.disconnect();
+                        // If it's within textarea but not the textarea itself, still prevent
                     }
-                });
-                observer.observe(elements.suggestPanel, { attributes: true, attributeFilter: ['class'] });
-                
-                // Scroll to top to ensure panel is visible
-                window.scrollTo(0, 0);
-                
-                // Track scroll events to debug scrolling issue
-                const scrollHandler = () => {
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/9c27437d-89e3-443e-a630-d9c29e767acb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app.js:2950',message:'Scroll detected in fullscreen suggest',data:{scrollY:window.scrollY,bodyPosition:document.body.style.position,bodyOverflow:document.body.style.overflow,isFullscreen:elements.suggestPanel.classList.contains('suggest-panel-fullscreen')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-                    // #endregion
+                    
+                    // Prevent ALL touchmove events for scrolling
+                    e.preventDefault();
+                    e.stopImmediatePropagation(); // Stop ALL other listeners
+                    e.stopPropagation();
+                    return false;
                 };
-                window.addEventListener('scroll', scrollHandler, { passive: true });
                 
-                // Store handler for cleanup
-                if (!elements.suggestPanel._scrollHandler) {
-                    elements.suggestPanel._scrollHandler = scrollHandler;
+                // Also prevent scroll and wheel events
+                const preventScrollEvents = (e) => {
+                    const target = e.target;
+                    // Only allow scroll events in textarea
+                    if (target && target.tagName === 'TEXTAREA') {
+                        return;
+                    }
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                    return false;
+                };
+                
+                // Add preventScroll with HIGHEST priority (capture phase, first to register)
+                // This must run BEFORE any other listeners to prevent scrolling
+                // Remove any existing listeners first to ensure clean state
+                document.addEventListener('touchmove', preventScroll, { passive: false, capture: true });
+                document.body.addEventListener('touchmove', preventScroll, { passive: false, capture: true });
+                window.addEventListener('touchmove', preventScroll, { passive: false, capture: true });
+                // Also prevent scroll and wheel events
+                document.addEventListener('scroll', preventScrollEvents, { passive: false, capture: true });
+                window.addEventListener('scroll', preventScrollEvents, { passive: false, capture: true });
+                document.addEventListener('wheel', preventScrollEvents, { passive: false, capture: true });
+                elements.suggestPanel._preventScroll = preventScroll;
+                elements.suggestPanel._preventScrollEvents = preventScrollEvents;
+                
+                // Lock scroll position - prevent any programmatic scrolling
+                const savedScrollY = window.scrollY;
+                const lockScroll = () => {
+                    if (window.scrollY !== savedScrollY) {
+                        window.scrollTo(0, savedScrollY);
+                    }
+                };
+                const scrollLockInterval = setInterval(lockScroll, 50);
+                elements.suggestPanel._scrollLockInterval = scrollLockInterval;
+                
+                // Set initial size
+                updatePanelSize();
+                
+                // Update when keyboard appears/disappears
+                if (window.visualViewport) {
+                    viewportHandler = () => {
+                        // Only update if still in fullscreen
+                        if (elements.suggestPanel.classList.contains('suggest-panel-fullscreen')) {
+                            updatePanelSize();
+                } else {
+                            // Panel is no longer fullscreen, remove this handler
+                            window.visualViewport.removeEventListener('resize', viewportHandler);
+                            elements.suggestPanel._viewportHandler = null;
+                        }
+                    };
+                    window.visualViewport.addEventListener('resize', viewportHandler);
+                    elements.suggestPanel._viewportHandler = viewportHandler;
                 }
             }
         };
         
-        // Use click/touchstart to enter fullscreen, then focus
-        const handleSuggestInteraction = (e) => {
-            enterFullscreen();
-            // Call focus() synchronously to maintain user interaction chain for mobile keyboard
-            elements.suggestContent.focus();
+        const exitFullscreen = () => {
+            // Check if we already exited or never entered (prevent double-calls)
+            if (elements.suggestPanel._savedScrollY == null) {
+                return;
+            }
+            
+            // Get saved scroll position FIRST, before any cleanup
+                        const scrollY = elements.suggestPanel._savedScrollY || 0;
+            elements.suggestPanel._savedScrollY = null; // Clear immediately to prevent double-calls
+            
+            // CRITICAL: Add allowScrollFirst FIRST (before removing preventScroll)
+            // This ensures it runs before any other listeners and allows scrolling
+            const allowScrollFirst = (e) => {
+                const target = e.target;
+                // Allow scrolling on the main page content, but not on inputs/textareas
+                if (target.tagName !== 'TEXTAREA' && 
+                    target.tagName !== 'INPUT' && 
+                    !target.closest('textarea') && 
+                    !target.closest('input')) {
+                    // For main page content, stop propagation so other listeners don't prevent scroll
+                    e.stopImmediatePropagation();
+                    // Don't prevent default - let the scroll happen
+                }
+            };
+            // Add FIRST with highest priority (capture phase)
+            document.addEventListener('touchmove', allowScrollFirst, { passive: false, capture: true });
+            document.body.addEventListener('touchmove', allowScrollFirst, { passive: false, capture: true });
+            window.addEventListener('touchmove', allowScrollFirst, { passive: false, capture: true });
+            elements.suggestPanel._allowScrollFirst = allowScrollFirst;
+            
+            // NOW remove scroll prevention (after allowScrollFirst is in place)
+            if (elements.suggestPanel._preventScroll) {
+                const preventScroll = elements.suggestPanel._preventScroll;
+                document.body.removeEventListener('touchmove', preventScroll, { capture: true });
+                document.removeEventListener('touchmove', preventScroll, { capture: true });
+                window.removeEventListener('touchmove', preventScroll, { capture: true });
+                elements.suggestPanel._preventScroll = null;
+            }
+            // Also remove scroll/wheel event prevention
+            if (elements.suggestPanel._preventScrollEvents) {
+                const preventScrollEvents = elements.suggestPanel._preventScrollEvents;
+                document.removeEventListener('scroll', preventScrollEvents, { capture: true });
+                window.removeEventListener('scroll', preventScrollEvents, { capture: true });
+                document.removeEventListener('wheel', preventScrollEvents, { capture: true });
+                elements.suggestPanel._preventScrollEvents = null;
+            }
+            
+            // CRITICAL: Also disable the global scroll prevention system if it's enabled
+            if (typeof disableScrollPrevention === 'function') {
+                disableScrollPrevention();
+                disableScrollPrevention(); // Call it again to be absolutely sure
+            }
+            
+            // Also try to manually remove global listeners if they exist
+            if (typeof scrollPreventionHandler !== 'undefined' && scrollPreventionHandler !== null) {
+                try {
+                    document.removeEventListener('touchmove', scrollPreventionHandler, { capture: true });
+                    document.removeEventListener('wheel', scrollPreventionHandler, { capture: true });
+                    document.removeEventListener('scroll', scrollPreventionHandler, { capture: true });
+                    window.removeEventListener('scroll', scrollPreventionHandler, { capture: true });
+                    document.removeEventListener('touchstart', scrollPreventionHandler, { capture: true });
+                    scrollPreventionHandler = null;
+                } catch (e) {
+                    // Ignore errors
+                }
+            }
+            if (typeof bodyScrollPreventionHandler !== 'undefined' && bodyScrollPreventionHandler !== null) {
+                try {
+                    document.body.removeEventListener('touchmove', bodyScrollPreventionHandler);
+                    document.body.removeEventListener('wheel', bodyScrollPreventionHandler);
+                    bodyScrollPreventionHandler = null;
+                } catch (e) {
+                    // Ignore errors
+                }
+            }
+            
+            // Remove scroll lock interval if it exists
+            if (elements.suggestPanel._scrollLockInterval) {
+                clearInterval(elements.suggestPanel._scrollLockInterval);
+                elements.suggestPanel._scrollLockInterval = null;
+            }
+            
+            // Remove viewport listener FIRST to prevent interference
+            if (elements.suggestPanel._viewportHandler && window.visualViewport) {
+                const handler = elements.suggestPanel._viewportHandler;
+                window.visualViewport.removeEventListener('resize', handler);
+                // Also try removing scroll listener just in case
+                try {
+                    window.visualViewport.removeEventListener('scroll', handler);
+                } catch (e) {
+                    // Ignore if scroll listener wasn't added
+                }
+                elements.suggestPanel._viewportHandler = null;
+            }
+            
+            // Remove fullscreen mode from body/html FIRST (before panel changes)
+            document.documentElement.classList.remove('panel-fullscreen-mode');
+            document.body.classList.remove('panel-fullscreen-mode');
+            
+            // CRITICAL: Explicitly reset body/html backgrounds BEFORE removing panel class
+            // This ensures the pink safe areas disappear immediately
+            // Also reset any ::before pseudo-elements by forcing a reflow
+            document.body.style.setProperty('background', 'var(--bg)', 'important');
+            document.documentElement.style.setProperty('background', 'var(--bg)', 'important');
+            // Remove any inline styles that might be causing pink backgrounds
+            document.body.style.removeProperty('background-color');
+            document.documentElement.style.removeProperty('background-color');
+            // Force reflow to apply background changes and remove pseudo-elements
+            void document.body.offsetHeight;
+            // Use requestAnimationFrame to ensure CSS pseudo-elements update
+            requestAnimationFrame(() => {
+                document.body.style.setProperty('background', 'var(--bg)', 'important');
+                document.documentElement.style.setProperty('background', 'var(--bg)', 'important');
+            });
+            
+            // Remove fullscreen class, restore sticky
+            // Toggle the class off and on to force CSS pseudo-elements to update
+            elements.suggestPanel.classList.remove('suggest-panel-fullscreen');
+            // Force a reflow to ensure CSS pseudo-elements are removed
+            void elements.suggestPanel.offsetHeight;
+            // Add a temporary class to force re-render, then remove it
+            elements.suggestPanel.classList.add('suggest-panel-temp');
+            void elements.suggestPanel.offsetHeight;
+            elements.suggestPanel.classList.remove('suggest-panel-temp');
+            elements.suggestPanel.classList.add('suggest-panel-sticky');
+            
+            // Ensure the panel background is correct for sticky mode
+            elements.suggestPanel.style.setProperty('background', 'rgba(255, 245, 250, 0.95)', 'important');
+            
+            // Force multiple reflows to ensure all CSS updates
+            void document.body.offsetHeight;
+            void elements.suggestPanel.offsetHeight;
+            void document.documentElement.offsetHeight;
+            
+            // Final check: ensure no pink backgrounds remain
+            requestAnimationFrame(() => {
+                document.body.style.setProperty('background', 'var(--bg)', 'important');
+                document.documentElement.style.setProperty('background', 'var(--bg)', 'important');
+            });
+            
+            // Force sticky positioning with inline styles
+            // Clear ALL fullscreen styles first
+            elements.suggestPanel.style.height = '';
+            elements.suggestPanel.style.minHeight = '';
+            elements.suggestPanel.style.maxHeight = '';
+            elements.suggestPanel.style.top = '';
+            elements.suggestPanel.style.bottom = '';
+            elements.suggestPanel.style.left = '';
+            elements.suggestPanel.style.right = '';
+            elements.suggestPanel.style.transform = '';
+            elements.suggestPanel.style.width = '';
+            elements.suggestPanel.style.maxWidth = '';
+            elements.suggestPanel.style.display = '';
+            // Force reflow to clear styles
+            void elements.suggestPanel.offsetHeight;
+            // Now set sticky styles
+            elements.suggestPanel.style.position = 'fixed';
+            elements.suggestPanel.style.bottom = 'calc(1.5rem + env(safe-area-inset-bottom, 0px))';
+            elements.suggestPanel.style.left = '50%';
+            elements.suggestPanel.style.transform = 'translateX(-50%)';
+            elements.suggestPanel.style.top = 'auto';
+            elements.suggestPanel.style.right = 'auto';
+            elements.suggestPanel.style.width = 'calc(100% - 4rem)';
+            elements.suggestPanel.style.maxWidth = 'calc(var(--max-width) - 2rem)';
+            
+            // Remove ALL inline styles that could possibly affect scrolling
+            document.body.style.removeProperty('overflow');
+            document.body.style.removeProperty('overflow-x');
+            document.body.style.removeProperty('overflow-y');
+            document.body.style.removeProperty('position');
+            document.body.style.removeProperty('top');
+            document.body.style.removeProperty('left');
+            document.body.style.removeProperty('width');
+            document.body.style.removeProperty('height');
+            document.body.style.removeProperty('max-height');
+            document.body.style.removeProperty('overscroll-behavior');
+            document.body.style.removeProperty('touch-action');
+            document.body.style.removeProperty('pointer-events');
+            document.documentElement.style.removeProperty('overflow');
+            document.documentElement.style.removeProperty('overflow-x');
+            document.documentElement.style.removeProperty('overflow-y');
+            document.documentElement.style.removeProperty('height');
+            document.documentElement.style.removeProperty('max-height');
+            document.documentElement.style.removeProperty('overscroll-behavior');
+            document.documentElement.style.removeProperty('touch-action');
+            document.documentElement.style.removeProperty('pointer-events');
+            
+            // CRITICAL FIX: Set overflow to auto to fully restore scrolling
+            // Don't set height to auto - just remove it and let natural height take over
+            document.body.style.setProperty('overflow', 'auto', 'important');
+            document.documentElement.style.setProperty('overflow', 'auto', 'important');
+            
+            // Force multiple reflows to ensure iOS Safari recognizes scroll is enabled
+            void document.body.offsetHeight;
+            void document.documentElement.offsetHeight;
+            document.body.style.transform = 'translateZ(0)';
+            void document.body.offsetHeight;
+            document.body.style.removeProperty('transform');
+            
+            // Force multiple reflows to ensure styles are applied
+            void document.body.offsetHeight;
+            void document.documentElement.offsetHeight;
+            
+            // Restore scroll position immediately
+            window.scrollTo(0, scrollY);
+            
+            // iOS Safari workaround: Force scroll capability by temporarily enabling scroll
+            // and then restoring position. Sometimes iOS needs this to "unlock" scrolling.
+            setTimeout(() => {
+                // Check if we can actually scroll
+                const canScroll = document.body.scrollHeight > window.innerHeight;
+                const currentScroll = window.scrollY;
+                
+                if (canScroll && currentScroll === 0 && scrollY > 0) {
+                    // Try to scroll to the saved position
+                    window.scrollTo({
+                        top: scrollY,
+                        left: 0,
+                        behavior: 'auto'
+                    });
+                }
+                
+                // Force a tiny scroll movement to "unlock" iOS Safari scrolling
+                const testScroll = window.scrollY;
+                if (testScroll === 0 && canScroll) {
+                    // Try scrolling down 1px and back
+                    window.scrollTo(0, 1);
+                    setTimeout(() => {
+                        window.scrollTo(0, scrollY);
+                    }, 10);
+                }
+            }, 50);
+            
+            // Try scrolling documentElement if body doesn't work (iOS Safari sometimes uses html)
+            if (document.documentElement.scrollHeight > window.innerHeight) {
+                document.documentElement.scrollTop = scrollY;
+            }
         };
         
-        elements.suggestContent.addEventListener('focus', enterFullscreen);
-        elements.suggestContent.addEventListener('click', handleSuggestInteraction);
-        elements.suggestContent.addEventListener('touchstart', handleSuggestInteraction);
+        // Make exitFullscreen accessible from outside
+        elements.suggestPanel.exitFullscreen = exitFullscreen;
+        
+        // Focus event handler - enters fullscreen when textarea is focused
+        elements.suggestContent.addEventListener('focus', (e) => {
+            // Enter fullscreen on focus (this is the working solution!)
+            // Only enter if not already in fullscreen to avoid double-entry
+            if (!elements.suggestPanel.classList.contains('suggest-panel-fullscreen')) {
+            enterFullscreen();
+            } else {
+                // Ensure focus is maintained for keyboard
+                if (document.activeElement !== elements.suggestContent) {
+                    setTimeout(() => {
+            elements.suggestContent.focus();
+                    }, 0);
+                }
+            }
+        });
+        
+        // Click handler - ensure focus happens and prevent blur from exiting
+        elements.suggestContent.addEventListener('click', (e) => {
+            // Set flag to prevent blur from exiting
+            isClickingToEnter = true;
+            // Let the natural click behavior focus the textarea
+            // The focus event will handle entering fullscreen
+            setTimeout(() => {
+                // Ensure focus happened
+                if (document.activeElement !== elements.suggestContent) {
+                    elements.suggestContent.focus();
+                }
+            }, 10);
+            // Reset flag after delay
+            setTimeout(() => {
+                isClickingToEnter = false;
+            }, 500);
+        });
+        
+        elements.suggestContent.addEventListener('touchstart', (e) => {
+            // Set flag to prevent blur from exiting
+            isClickingToEnter = true;
+            // Let the natural touchstart behavior focus the textarea
+            setTimeout(() => {
+                isClickingToEnter = false;
+            }, 500);
+        });
+        
+        // Also handle clicks on the panel itself (for sticky panel clicks)
+        // When clicking "suggest something" placeholder text in sticky panel
+        elements.suggestPanel.addEventListener('click', (e) => {
+            const target = e.target;
+            // Don't interfere with button clicks
+            if (target.tagName === 'BUTTON' || target.closest('button')) {
+                return;
+            }
+            // If clicking anywhere in the panel (not a button), focus the textarea
+            // This ensures clicking the placeholder or panel focuses the textarea
+            if (target === elements.suggestContent || 
+                target.closest('textarea') === elements.suggestContent ||
+                (target.closest('.suggest-panel') === elements.suggestPanel && !target.closest('button'))) {
+                // Set flag to prevent blur from exiting fullscreen
+                isClickingToEnter = true;
+                // Don't stop propagation - let the natural click behavior happen
+                // Focus the textarea immediately - this should trigger focus event
+                elements.suggestContent.focus();
+                // Also ensure focus happens after a tiny delay
+                setTimeout(() => {
+                    if (document.activeElement !== elements.suggestContent) {
+                        elements.suggestContent.focus();
+                    }
+                }, 10);
+                // Keep flag set longer to prevent blur from exiting
+                setTimeout(() => {
+                    isClickingToEnter = false;
+                }, 500);
+            }
+        }, true); // Use capture phase to catch it early
         
         elements.suggestContent.addEventListener('blur', () => {
-            // Delay to allow submit button clicks to work
+            // Delay to allow submit button clicks to work and keyboard to appear
             setTimeout(() => {
+                // Don't exit if we're currently submitting (handleCreateSuggestion will handle it)
+                if (elements.suggestPanel._isSubmitting) {
+                    return;
+                }
+                
+                // Don't exit if user is clicking to re-enter fullscreen
+                if (isClickingToEnter) {
+                    // Don't reset flag here - let the timeout in click handler do it
+                    return;
+                }
+                
+                // Check if textarea is actually focused now (keyboard might have refocused it)
+                if (document.activeElement === elements.suggestContent) {
+                    return;
+                }
+                
                 // Only exit fullscreen if the active element is not within the suggest panel
                 const activeElement = document.activeElement;
                 const isWithinPanel = activeElement && elements.suggestPanel.contains(activeElement);
                 
                 // Don't exit fullscreen if user clicked a button within the panel
-                if (!isWithinPanel && elements.suggestPanel.classList.contains('suggest-panel-fullscreen')) {
-                    // Restore scroll position
-                    const scrollY = elements.suggestPanel._savedScrollY || 0;
-                    elements.suggestPanel.classList.remove('suggest-panel-fullscreen');
-                    elements.suggestPanel.classList.add('suggest-panel-sticky');
-                    // Remove scroll prevention class
-                    document.documentElement.classList.remove('fullscreen-open');
-                    document.body.classList.remove('fullscreen-open');
-                    document.body.style.top = '';
-                    disableScrollPrevention();
-                    elements.suggestPanel.style.removeProperty('height');
-                    elements.suggestPanel.style.removeProperty('top');
-                    window.scrollTo(0, scrollY);
-                    elements.suggestPanel._savedScrollY = null;
+                if (!isWithinPanel) {
+                    exitFullscreen();
                 }
-            }, 200);
+            }, 300); // Increased delay to allow keyboard to appear
         });
     }
     
     // Random word
-    elements.randomWordButton.addEventListener('click', (e) => {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/9c27437d-89e3-443e-a630-d9c29e767acb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app.js:2930',message:'Random word button clicked',data:{isFullscreen:elements.suggestPanel.classList.contains('suggest-panel-fullscreen')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
+    if (!elements.randomWordButton) {
+        console.error('randomWordButton element not found');
+    } else {
+        elements.randomWordButton.addEventListener('click', (e) => {
         e.preventDefault();
         const word = getRandomWord();
         const currentText = elements.suggestContent.value.trim();
         const newText = currentText ? `${currentText} ${word}` : word;
         elements.suggestContent.value = newText;
         
-        // Enter fullscreen if on mobile and not already in fullscreen
-        if (window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-            if (!elements.suggestPanel.classList.contains('suggest-panel-fullscreen')) {
-                // Remove sticky positioning first to avoid glitchy transition
-                elements.suggestPanel.classList.remove('suggest-panel-sticky');
-                elements.suggestPanel.classList.add('suggest-panel-fullscreen');
-                // Prevent background scrolling using CSS class
-                const scrollY = window.scrollY;
-                elements.suggestPanel._savedScrollY = scrollY;
-                document.documentElement.classList.add('fullscreen-open');
-                document.body.classList.add('fullscreen-open');
-                document.body.style.top = `-${scrollY}px`;
-                enableScrollPrevention();
-                
-                // Use visual viewport height to account for keyboard
-                const updateHeight = () => {
-                    if (elements.suggestPanel.classList.contains('suggest-panel-fullscreen')) {
-                        if (window.visualViewport) {
-                            // Use visual viewport height (space above keyboard)
-                            elements.suggestPanel.style.height = `${window.visualViewport.height}px`;
-                            elements.suggestPanel.style.top = `${window.visualViewport.offsetTop}px`;
-                        } else {
-                            // Fallback to window inner height
-                            elements.suggestPanel.style.height = `${window.innerHeight}px`;
-                        }
-                    }
-                };
-                
-                updateHeight();
-                
-                // Listen for viewport changes (keyboard appearing/disappearing)
-                if (window.visualViewport) {
-                    window.visualViewport.addEventListener('resize', updateHeight);
-                    window.visualViewport.addEventListener('scroll', updateHeight);
-                } else {
-                    window.addEventListener('resize', updateHeight);
-                }
-                
-                // Scroll to top to ensure panel is visible
-                window.scrollTo(0, 0);
-            }
-        }
-        
-        // Focus immediately to open keyboard - call synchronously to maintain user interaction chain
+            // Trigger focus to enter fullscreen (if on mobile) and open keyboard
+            // The focus event handler will handle entering fullscreen
         elements.suggestContent.focus();
+            
         // Set cursor position to the end of the text
         const textLength = elements.suggestContent.value.length;
         elements.suggestContent.setSelectionRange(textLength, textLength);
-    });
+        });
+    }
     
     // Playlist save
-    elements.playlistSaveButton.addEventListener('click', handleSavePlaylist);
-    elements.playlistUrlInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') handleSavePlaylist();
-    });
+    if (elements.playlistSaveButton) {
+        elements.playlistSaveButton.addEventListener('click', handleSavePlaylist);
+    }
+    if (elements.playlistUrlInput) {
+        elements.playlistUrlInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleSavePlaylist();
+        });
+    }
     
     // Playlist volume toggle
     if (elements.playlistVolumeToggle) {
@@ -3132,11 +3830,47 @@ function setupEventListeners() {
     }
     
     // Listen for auth state changes
-    supabase.auth.onAuthStateChange((event, session) => {
-        if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
-            checkAuthState();
-        }
-    });
+    if (supabaseClient) {
+        supabaseClient.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+                checkAuthState();
+            }
+        });
+    } else {
+        console.error('Cannot set up auth state listener: supabase is not initialized');
+    }
+    
+    // App status close button
+    if (elements.appStatusClose) {
+        elements.appStatusClose.addEventListener('click', () => {
+            hideAppStatus();
+        });
+    }
+}
+
+// ============================================
+// App Status Display
+// ============================================
+
+function updateAppStatus(message, type = 'info') {
+    if (!elements.appStatusInfo || !elements.appStatusText) return;
+    
+    elements.appStatusText.textContent = message;
+    elements.appStatusInfo.classList.remove('hidden', 'error', 'warning', 'info');
+    
+    if (type === 'error') {
+        elements.appStatusInfo.classList.add('error');
+    } else if (type === 'warning') {
+        elements.appStatusInfo.classList.add('warning');
+    }
+    
+    elements.appStatusInfo.classList.remove('hidden');
+}
+
+function hideAppStatus() {
+    if (elements.appStatusInfo) {
+        elements.appStatusInfo.classList.add('hidden');
+    }
 }
 
 // ============================================
@@ -3191,6 +3925,64 @@ function setupZoomPrevention() {
 }
 
 async function init() {
+    console.log('Initializing app...');
+    updateAppStatus('initializing app...', 'info');
+    
+    // Ensure Supabase is loaded before proceeding
+    if (!window.supabase) {
+        console.log('Waiting for Supabase library to load...');
+        updateAppStatus('waiting for supabase library...', 'info');
+        // Wait for the script to load
+        await new Promise(resolve => {
+            const checkSupabase = setInterval(() => {
+                if (window.supabase) {
+                    clearInterval(checkSupabase);
+                    console.log('Supabase library loaded, initializing client...');
+                    updateAppStatus('initializing supabase client...', 'info');
+                    if (initializeSupabase()) {
+                        console.log('Supabase client initialized successfully');
+                        updateAppStatus('supabase connected', 'info');
+                        resolve();
+                    } else {
+                        console.error('Failed to initialize Supabase client');
+                        updateAppStatus('error: failed to initialize supabase client', 'error');
+                        resolve();
+                    }
+                }
+            }, 100);
+            // Timeout after 5 seconds
+            setTimeout(() => {
+                clearInterval(checkSupabase);
+                console.error('Supabase library failed to load after 5 seconds');
+                updateAppStatus('error: supabase library failed to load (timeout)', 'error');
+                resolve();
+            }, 5000);
+        });
+    } else {
+        // Supabase is already loaded, initialize immediately
+        console.log('Supabase library already loaded, initializing client...');
+        updateAppStatus('initializing supabase client...', 'info');
+        if (!initializeSupabase()) {
+            console.error('Failed to initialize Supabase client');
+            updateAppStatus('error: failed to initialize supabase client', 'error');
+            return;
+        }
+        console.log('Supabase client initialized successfully');
+        updateAppStatus('supabase connected', 'info');
+    }
+    
+    if (!supabaseClient) {
+        console.error('Supabase client not initialized. App may not work correctly.');
+        updateAppStatus('error: supabase client not initialized. app may not work correctly.', 'error');
+        // Show error to user if possible
+        if (elements.postsContainer) {
+            elements.postsContainer.innerHTML = '<p style="color: var(--text-muted); font-family: var(--font-mono);">Error: Failed to load. Please refresh the page.</p>';
+        }
+        return;
+    }
+    
+    console.log('Setting up event listeners...');
+    updateAppStatus('setting up event listeners...', 'info');
     setupEventListeners();
     
     // Setup zoom prevention for inputs
@@ -3200,7 +3992,19 @@ async function init() {
     updateTagSuggestions();
     
     // Check authentication state
+    console.log('Checking authentication state...');
+    updateAppStatus('checking authentication...', 'info');
+    try {
     await checkAuthState();
+    console.log('Initialization complete');
+        // Hide status after successful initialization (with a small delay)
+        setTimeout(() => {
+            hideAppStatus();
+        }, 1000);
+    } catch (error) {
+        console.error('Error during initialization:', error);
+        updateAppStatus(`error: ${error.message || 'initialization failed'}`, 'error');
+    }
     
     // Register service worker for PWA
     if ('serviceWorker' in navigator) {

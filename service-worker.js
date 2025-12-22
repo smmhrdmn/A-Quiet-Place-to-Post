@@ -1,5 +1,5 @@
 // Service Worker for nez updates
-const CACHE_NAME = 'nez-updates-v1';
+const CACHE_NAME = 'nez-updates-v2';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -24,6 +24,17 @@ self.addEventListener('fetch', (event) => {
   // Don't cache Netlify function calls
   if (event.request.url.includes('/.netlify/functions/')) {
     event.respondWith(fetch(event.request));
+    return;
+  }
+  
+  // Always fetch app.js from network to avoid stale cache
+  if (event.request.url.includes('/app.js')) {
+    event.respondWith(
+      fetch(event.request).catch(() => {
+        // Fallback to cache if network fails
+        return caches.match(event.request);
+      })
+    );
     return;
   }
   
