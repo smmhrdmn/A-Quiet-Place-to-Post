@@ -947,6 +947,9 @@ function renderPlaylist(url, type) {
         case 'youtube':
             embedHtml = renderYouTubeEmbed(url);
             break;
+        case 'apple':
+            embedHtml = renderAppleMusicEmbed(url);
+            break;
         case 'spotify':
             embedHtml = renderSpotifyEmbed(url);
             break;
@@ -1266,6 +1269,89 @@ function renderSoundCloudEmbed(url) {
     `;
 }
 
+function renderAppleMusicEmbed(url) {
+    // Apple Music URL formats:
+    // - Playlist: https://music.apple.com/us/playlist/playlist-name/pl.xxxxx
+    // - Playlist: https://music.apple.com/playlist/playlist-name/pl.xxxxx
+    // - Album: https://music.apple.com/us/album/album-name/xxxxx
+    // - Song: https://music.apple.com/us/song/song-name/xxxxx
+    
+    // Extract playlist/album/song ID and type
+    // Pattern: music.apple.com/[country/]playlist|album|song/name/id
+    const playlistMatch = url.match(/music\.apple\.com\/(?:[a-z]{2}\/)?playlist\/[^/]+\/(pl\.[a-zA-Z0-9]+)/);
+    const albumMatch = url.match(/music\.apple\.com\/(?:[a-z]{2}\/)?album\/[^/]+\/([a-zA-Z0-9]+)/);
+    const songMatch = url.match(/music\.apple\.com\/(?:[a-z]{2}\/)?song\/[^/]+\/([a-zA-Z0-9]+)/);
+    
+    // Extract country code (default to 'us' if not found)
+    const countryMatch = url.match(/music\.apple\.com\/([a-z]{2})\//);
+    const country = countryMatch ? countryMatch[1] : 'us';
+    
+    let embedUrl = '';
+    let type = '';
+    
+    if (playlistMatch) {
+        const playlistId = playlistMatch[1];
+        embedUrl = `https://embed.music.apple.com/${country}/playlist/${playlistId}`;
+        type = 'playlist';
+    } else if (albumMatch) {
+        const albumId = albumMatch[1];
+        embedUrl = `https://embed.music.apple.com/${country}/album/${albumId}`;
+        type = 'album';
+    } else if (songMatch) {
+        const songId = songMatch[1];
+        embedUrl = `https://embed.music.apple.com/${country}/song/${songId}`;
+        type = 'song';
+    } else {
+        return '<p class="playlist-error">invalid apple music url</p>';
+    }
+    
+    // Hidden iframe for Apple Music
+    return `
+        <iframe 
+            id="apple-music-player"
+            style="display: none;" 
+            src="${embedUrl}?app=music" 
+            width="0" 
+            height="0" 
+            frameborder="0" 
+            allowfullscreen="" 
+            allow="autoplay; encrypted-media" 
+            loading="lazy">
+        </iframe>
+    `;
+}
+
+function detectPlaylistType(url) {
+    if (!url || !url.trim()) {
+        return 'youtube'; // Default
+    }
+    
+    const trimmedUrl = url.trim().toLowerCase();
+    
+    // Check for Apple Music
+    if (trimmedUrl.includes('music.apple.com')) {
+        return 'apple';
+    }
+    
+    // Check for YouTube
+    if (trimmedUrl.includes('youtube.com') || trimmedUrl.includes('youtu.be')) {
+        return 'youtube';
+    }
+    
+    // Check for Spotify
+    if (trimmedUrl.includes('spotify.com')) {
+        return 'spotify';
+    }
+    
+    // Check for SoundCloud
+    if (trimmedUrl.includes('soundcloud.com')) {
+        return 'soundcloud';
+    }
+    
+    // Default to YouTube
+    return 'youtube';
+}
+
 function handleYouTubeError(errorCode) {
     // YouTube error codes:
     // 2 - Invalid parameter value
@@ -1388,7 +1474,7 @@ function updateVolumeState() {
 
 async function handleSavePlaylist() {
     const url = elements.playlistUrlInput.value.trim();
-    const type = 'youtube'; // Always YouTube
+    const type = detectPlaylistType(url); // Auto-detect playlist type
     
     elements.playlistSaveButton.textContent = '...';
     elements.playlistSaveButton.disabled = true;
