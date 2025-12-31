@@ -4,12 +4,12 @@
    ======================================== */
 
 :root {
-    --bg: #faf8f8;
+    --bg: #ffc8dc;
     --text: #2a1818;
     --text-muted: #6a5757;
     --accent: #8b7355;
-    --rule: #e8d4d4;
-    --rule-dark: #b8a8a8;
+    --rule: rgba(255, 245, 250, 0.8);
+    --rule-dark: rgba(255, 245, 250, 0.8);
     
     --font-mono: 'IBM Plex Mono', monospace;
     --font-serif: 'Cormorant Garamond', Georgia, serif;
@@ -60,7 +60,7 @@ body {
     padding-bottom: calc(6rem + env(safe-area-inset-bottom)); /* Space for sticky panels + home indicator */
     opacity: 0;
     animation: fadeIn 0.8s ease forwards;
-    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z' fill='%23ff69b4'/%3E%3C/svg%3E") 0 0, auto;
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z' fill='%23ffffff'/%3E%3C/svg%3E") 0 0, auto;
     overflow-x: hidden;
     scrollbar-gutter: stable;
 }
@@ -92,13 +92,13 @@ html.panel-fullscreen-mode {
 body.panel-fullscreen-mode {
     height: 100% !important;
     overscroll-behavior: none !important;
-    background: rgba(255, 245, 250, 1) !important; /* Match panel pink background */
+    background: #ff69b4 !important; /* Match panel pink background */
     /* Don't use position: fixed to avoid layout shifts */
     /* Overflow is controlled by JavaScript inline styles for reliable cleanup */
 }
 
 html.panel-fullscreen-mode {
-    background: rgba(255, 245, 250, 1) !important; /* Match panel pink background */
+    background: #ff69b4 !important; /* Match panel pink background */
 }
 
 /* Allow pointer events on the panel and its children */
@@ -135,14 +135,14 @@ body.panel-fullscreen-mode textarea {
 }
 
 a, .status-link, .inbox-button {
-    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z' fill='%23ff69b4'/%3E%3C/svg%3E") 0 0, pointer;
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z' fill='%23ffffff'/%3E%3C/svg%3E") 0 0, pointer;
 }
 
 /* Cursor for text inputs - pencil */
 input[type="text"],
 input[type="password"],
 textarea {
-    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Ctext x='12' y='18' font-size='20' fill='%23ff69b4' text-anchor='middle'%3E✎%3C/text%3E%3C/svg%3E") 12 12, text !important;
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Ctext x='12' y='18' font-size='20' fill='%23ffffff' text-anchor='middle'%3E✎%3C/text%3E%3C/svg%3E") 12 12, text !important;
 }
 
 /* Cursor for buttons - flower */
@@ -150,7 +150,7 @@ button,
 button:hover,
 button:focus,
 button:active {
-    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Ctext x='12' y='18' font-size='20' fill='%23ff69b4' text-anchor='middle'%3E❀%3C/text%3E%3C/svg%3E") 12 12, pointer !important;
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Ctext x='12' y='18' font-size='20' fill='%23ffffff' text-anchor='middle'%3E❀%3C/text%3E%3C/svg%3E") 12 12, pointer !important;
 }
 
 /* Cursor for like button - heart */
@@ -158,7 +158,7 @@ button:active {
 .post-like:hover,
 .post-like:focus,
 .post-like:active {
-    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Ctext x='12' y='18' font-size='20' fill='%23ff69b4' text-anchor='middle'%3E♥%3C/text%3E%3C/svg%3E") 12 12, pointer !important;
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Ctext x='12' y='18' font-size='20' fill='%23ffffff' text-anchor='middle'%3E♥%3C/text%3E%3C/svg%3E") 12 12, pointer !important;
 }
 
 @keyframes fadeIn {
@@ -468,7 +468,7 @@ nav {
     padding: var(--spacing);
     padding-top: 1.5rem;
     border: 1px solid var(--rule);
-    background: rgba(255, 250, 250, 0.6);
+    background: #ff69b4;
 }
 
 .write-panel-sticky,
@@ -482,7 +482,7 @@ nav {
     margin: 0 !important;
     padding: 1rem !important;
     border: 1px solid var(--rule) !important;
-    background: rgba(255, 245, 250, 0.95) !important;
+    background: #ff69b4 !important;
     z-index: 100 !important;
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05) !important;
     box-sizing: border-box !important;
@@ -502,7 +502,7 @@ nav {
     padding-right: 1rem !important;
     padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0)) !important;
     border: none !important;
-    background: rgba(255, 245, 250, 1) !important;
+    background: #ff69b4 !important;
     z-index: 99999 !important;
     box-shadow: none !important;
     display: flex !important;
@@ -527,7 +527,7 @@ nav {
     left: 0;
     right: 0;
     height: env(safe-area-inset-top, 0);
-    background: rgba(255, 245, 250, 1);
+    background: #ff69b4;
     z-index: -1;
 }
 
@@ -540,7 +540,7 @@ nav {
     left: 0;
     right: 0;
     height: calc(env(safe-area-inset-bottom, 0) + 100px); /* Extra height to cover keyboard toolbar */
-    background: rgba(255, 245, 250, 1);
+    background: #ff69b4;
     z-index: -1;
     pointer-events: none;
 }
@@ -559,7 +559,7 @@ nav {
     font-family: var(--font-serif);
     font-size: 1.2rem;
     line-height: 1.8;
-    color: var(--text);
+    color: white;
     background: transparent;
     border: none;
     resize: none;
@@ -567,6 +567,7 @@ nav {
     outline: none;
     margin-bottom: 1rem;
     padding: 0.5rem 0;
+    caret-color: white;
 }
 
 .write-panel-sticky textarea {
@@ -577,6 +578,8 @@ nav {
     line-height: 1.6;
     padding: 0.2rem 0;
     overflow-y: auto;
+    color: white;
+    caret-color: white;
 }
 
 .write-panel-fullscreen textarea {
@@ -590,6 +593,8 @@ nav {
     overflow-y: auto !important;
     touch-action: pan-y !important;
     overscroll-behavior: contain !important;
+    color: white !important;
+    caret-color: white !important;
     /* Ensure textarea can shrink to make room for buttons */
     flex-basis: 0 !important;
 }
@@ -601,7 +606,7 @@ nav {
     font-size: 1.5rem;
     font-weight: 300;
     line-height: 1;
-    color: var(--text-muted);
+    color: white;
     background: none;
     border: none;
     cursor: pointer;
@@ -619,7 +624,7 @@ nav {
 }
 
 .panel-close-button:hover {
-    color: var(--text);
+    color: white;
     opacity: 1;
 }
 
@@ -629,7 +634,7 @@ nav {
 }
 
 .write-panel textarea::placeholder {
-    color: var(--text-muted);
+    color: rgba(255, 255, 255, 0.6);
     font-style: italic;
 }
 
@@ -687,17 +692,18 @@ nav {
     cursor: pointer;
     padding: 0.25rem 0;
     transition: all 0.2s ease;
+    color: white;
 }
 
 #post-submit {
-    color: #ff69b4;
-    border-bottom: 1.5px solid #ff69b4;
+    color: white;
+    border-bottom: 1.5px solid white;
     padding-bottom: 0.25rem;
 }
 
 #post-submit:hover {
-    color: #ff8cc8;
-    border-bottom-color: #ff8cc8;
+    color: rgba(255, 255, 255, 0.8);
+    border-bottom-color: rgba(255, 255, 255, 0.8);
 }
 
 .password-change-link,
@@ -724,7 +730,7 @@ nav {
     padding: var(--spacing);
     padding-top: 1.5rem;
     border: 1px solid var(--rule);
-    background: rgba(255, 250, 250, 0.4);
+    background: #ff69b4;
 }
 
 .suggest-panel-sticky,
@@ -738,7 +744,7 @@ nav {
     margin: 0 !important;
     padding: 1rem !important;
     border: 1px solid var(--rule) !important;
-    background: rgba(255, 245, 250, 0.95) !important;
+    background: #ff69b4 !important;
     z-index: 100 !important;
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05) !important;
     box-sizing: border-box !important;
@@ -759,7 +765,7 @@ nav {
     padding-right: 1rem !important;
     padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0)) !important;
     border: none !important;
-    background: rgba(255, 245, 250, 1) !important;
+    background: #ff69b4 !important;
     z-index: 99999 !important;
     box-shadow: none !important;
     display: flex !important;
@@ -786,7 +792,7 @@ nav {
     left: 0;
     right: 0;
     height: env(safe-area-inset-top, 0);
-    background: rgba(255, 245, 250, 1);
+    background: #ff69b4;
     z-index: -1;
 }
 
@@ -799,7 +805,7 @@ nav {
     left: 0;
     right: 0;
     height: calc(env(safe-area-inset-bottom, 0) + 100px); /* Extra height to cover keyboard toolbar */
-    background: rgba(255, 245, 250, 1);
+    background: #ff69b4;
     z-index: -1;
     pointer-events: none;
 }
@@ -818,7 +824,7 @@ nav {
     font-family: var(--font-serif);
     font-size: 1.2rem;
     line-height: 1.8;
-    color: var(--text);
+    color: white;
     background: transparent;
     border: none;
     resize: none;
@@ -826,6 +832,7 @@ nav {
     outline: none;
     margin-bottom: 1rem;
     padding: 0.5rem 0;
+    caret-color: white;
 }
 
 .suggest-panel-sticky textarea {
@@ -836,6 +843,8 @@ nav {
     line-height: 1.6;
     padding: 0.2rem 0;
     overflow-y: auto;
+    color: white;
+    caret-color: white;
 }
 
 .suggest-panel-fullscreen textarea {
@@ -849,12 +858,14 @@ nav {
     overflow-y: auto !important;
     touch-action: pan-y !important;
     overscroll-behavior: contain !important;
+    color: white !important;
+    caret-color: white !important;
     /* Ensure textarea can shrink to make room for buttons */
     flex-basis: 0 !important;
 }
 
 .suggest-panel textarea::placeholder {
-    color: var(--text-muted);
+    color: rgba(255, 255, 255, 0.6);
     font-style: italic;
 }
 
@@ -905,28 +916,31 @@ nav {
     cursor: pointer;
     padding: 0.25rem 0;
     transition: all 0.2s ease;
+    color: white;
 }
 
 #suggest-submit {
-    color: #ff69b4;
-    border-bottom: 1.5px solid #ff69b4;
+    color: white;
+    border-bottom: 1.5px solid white;
     padding-bottom: 0.25rem;
 }
 
 #suggest-submit:hover {
-    color: #ff8cc8;
-    border-bottom-color: #ff8cc8;
+    color: rgba(255, 255, 255, 0.8);
+    border-bottom-color: rgba(255, 255, 255, 0.8);
 }
 
 .random-word-button {
-    color: var(--text-muted);
+    color: white;
     text-decoration: underline;
     text-decoration-thickness: 1px;
     text-underline-offset: 2px;
+    opacity: 0.8;
 }
 
 .random-word-button:hover {
-    color: var(--text);
+    color: white;
+    opacity: 1;
 }
 
 /* Inbox Panel */
@@ -1140,19 +1154,20 @@ nav {
     padding: 0.2rem 0;
     border: none;
     background: transparent;
-    color: var(--text);
+    color: white;
     outline: none;
     transition: color 0.2s ease;
+    caret-color: white;
 }
 
 .post-tag-input:focus {
-    color: #ff69b4;
+    color: white;
+    caret-color: white;
 }
 
 .post-tag-input::placeholder {
-    color: var(--text-muted);
+    color: rgba(255, 255, 255, 0.6);
     font-style: italic;
-    opacity: 0.6;
 }
 
 .write-panel-sticky .post-tag-input {
@@ -1161,10 +1176,12 @@ nav {
     max-width: 10rem;
     padding: 0.15rem 0;
     width: 2.2rem;
+    color: white;
+    caret-color: white;
 }
 
 .tag-suggestions {
-    display: flex;
+    display: none !important;
     flex-direction: row;
     align-items: center;
     gap: 0.4rem;
@@ -1335,6 +1352,12 @@ nav {
     display: none;
 }
 
+.playlist-sticker-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
 .playlist-volume-toggle {
     background: none;
     border: none;
@@ -1346,10 +1369,106 @@ nav {
     flex-shrink: 0;
     display: block !important;
     visibility: visible !important;
+    position: relative;
+    z-index: 2;
 }
 
 .playlist-volume-toggle:hover {
     opacity: 0.7;
+}
+
+.playlist-skip-button {
+    background: none;
+    border: none;
+    font-size: 0.75rem;
+    cursor: pointer;
+    padding: 0.25rem;
+    line-height: 1;
+    transition: opacity 0.2s ease;
+    flex-shrink: 0;
+    display: block !important;
+    visibility: visible !important;
+    position: relative;
+    z-index: 2;
+    margin-left: 0.25rem;
+}
+
+.playlist-skip-button.hidden {
+    display: none !important;
+}
+
+.playlist-skip-button:hover {
+    opacity: 0.7;
+}
+
+.playlist-sticker {
+    position: absolute;
+    right: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-right: 0.5rem;
+    padding: 0.3rem 0.6rem;
+    background: rgba(255, 245, 250, 0.9);
+    border: 1.5px solid #ff69b4;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--text);
+    white-space: nowrap;
+    z-index: 3;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    pointer-events: none;
+    animation: stickerPulse 2s ease-in-out infinite;
+}
+
+.playlist-sticker::before {
+    content: '';
+    position: absolute;
+    right: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0;
+    height: 0;
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    border-left: 6px solid #ff69b4;
+}
+
+.playlist-sticker::after {
+    content: '';
+    position: absolute;
+    right: -5px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0;
+    height: 0;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    border-left: 5px solid rgba(255, 245, 250, 0.9);
+}
+
+.playlist-sticker-text {
+    position: relative;
+    z-index: 1;
+    letter-spacing: 0.03em;
+}
+
+@keyframes stickerPulse {
+    0%, 100% {
+        opacity: 1;
+        transform: translateY(-50%) scale(1);
+    }
+    50% {
+        opacity: 0.9;
+        transform: translateY(-50%) scale(1.02);
+    }
+}
+
+/* Hide sticker on very small screens */
+@media (max-width: 400px) {
+    .playlist-sticker {
+        display: none;
+    }
 }
 
 .playlist-container {
@@ -1534,6 +1653,14 @@ nav {
     border-top: 1px solid var(--rule);
 }
 
+.letterboxd-reviews-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    gap: 1rem;
+}
+
 .letterboxd-reviews-title {
     font-family: var(--font-mono);
     font-size: 0.8rem;
@@ -1541,7 +1668,35 @@ nav {
     text-transform: lowercase;
     letter-spacing: 0.05em;
     color: var(--text);
-    margin-bottom: 1rem;
+    margin: 0;
+    flex: 1;
+}
+
+.letterboxd-toggle-all-button {
+    padding: 0.4rem 0.8rem;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 400;
+    text-transform: lowercase;
+    letter-spacing: 0.05em;
+    background: transparent;
+    border: 1px solid var(--rule-dark);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--text);
+    white-space: nowrap;
+}
+
+.letterboxd-toggle-all-button:hover {
+    background: rgba(0, 0, 0, 0.05);
+    border-color: #ff69b4;
+    color: #ff69b4;
+}
+
+.letterboxd-toggle-all-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 .letterboxd-reviews-list {
@@ -1558,6 +1713,21 @@ nav {
     border: 1px solid var(--rule);
     border-radius: 4px;
     background: rgba(255, 250, 250, 0.5);
+    transition: all 0.2s ease;
+}
+
+.letterboxd-review-item.review-selected {
+    border-color: #ff69b4;
+    background: rgba(255, 245, 250, 0.8);
+}
+
+.letterboxd-review-item.review-unselected {
+    opacity: 0.7;
+}
+
+.letterboxd-review-item:hover {
+    opacity: 1;
+    border-color: #ff69b4;
 }
 
 .letterboxd-review-checkbox {
@@ -1780,6 +1950,37 @@ footer {
 
 ::-webkit-scrollbar-thumb:hover {
     background: var(--text-muted);
+}
+
+/* Kiss Emoji Explosion Animation */
+.kiss-explosion {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 100000;
+}
+
+.kiss-emoji {
+    position: absolute;
+    font-size: 2rem;
+    animation: kissExplode 1.5s ease-out forwards;
+    opacity: 0;
+}
+
+@keyframes kissExplode {
+    0% {
+        opacity: 0;
+        transform: translate(0, 0) scale(0) rotate(0deg);
+    }
+    10% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+        transform: translate(var(--random-x), var(--random-y)) scale(1.5) rotate(var(--random-rotate));
+    }
 }
 
 

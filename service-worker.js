@@ -1,5 +1,5 @@
 // Service Worker for nez updates
-const CACHE_NAME = 'nez-updates-v2';
+const CACHE_NAME = 'nez-updates-v3';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -8,8 +8,11 @@ const urlsToCache = [
   '/manifest.json'
 ];
 
-// Install event - cache resources
+// Install event - cache resources and skip waiting for immediate activation
 self.addEventListener('install', (event) => {
+  // Skip waiting to activate new service worker immediately
+  self.skipWaiting();
+  
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
@@ -47,18 +50,23 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Activate event - clean up old caches
+// Activate event - clean up old caches and claim clients immediately
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
+    Promise.all([
+      // Clean up old caches
+      caches.keys().then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cacheName) => {
+            if (cacheName !== CACHE_NAME) {
+              return caches.delete(cacheName);
+            }
+          })
+        );
+      }),
+      // Claim all clients immediately so the new service worker takes control
+      self.clients.claim()
+    ])
   );
 });
 

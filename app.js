@@ -41,11 +41,10 @@ let suggestions = [];
 let playlistUrl = null;
 let playlistType = 'youtube';
 let playlistMuted = true; // Start muted to allow autoplay
-let youtubePlayer = null;
-let playerReady = false;
 let realtimeChannels = [];
 let letterboxdReviews = [];
 let letterboxdUrl = null;
+let letterboxdPollInterval = null; // Store interval ID for cleanup
 
 // ============================================
 // Scroll Prevention for Fullscreen Panels
@@ -138,6 +137,9 @@ const elements = {
     playlistSaveButton: document.getElementById('playlist-save'),
     playlistVolumeToggle: document.getElementById('playlist-volume-toggle'),
     playlistVolumeIcon: document.getElementById('playlist-volume-icon'),
+    playlistSkipBackward: document.getElementById('playlist-skip-backward'),
+    playlistSkipForward: document.getElementById('playlist-skip-forward'),
+    playlistSticker: document.querySelector('.playlist-sticker'),
     tabsNav: document.getElementById('tabs-nav'),
     tabFeed: document.getElementById('tab-feed'),
     tabSuggestions: document.getElementById('tab-suggestions'),
@@ -147,6 +149,7 @@ const elements = {
     letterboxdReviewsContainer: document.getElementById('letterboxd-reviews-container'),
     letterboxdReviewsList: document.getElementById('letterboxd-reviews-list'),
     letterboxdSaveSelection: document.getElementById('letterboxd-save-selection'),
+    letterboxdToggleAll: document.getElementById('letterboxd-toggle-all'),
     fullscreenOverlay: document.getElementById('fullscreen-overlay'),
     appStatusInfo: document.getElementById('app-status-info'),
     appStatusText: document.getElementById('app-status-text'),
@@ -399,6 +402,7 @@ async function fetchLetterboxdReviews(url) {
         let error = null;
         
         // First, try direct fetch (might work in some browsers/environments)
+        // Note: This will likely fail due to CORS, but we try it first
         try {
             const directResponse = await fetch(rssUrl, {
                 mode: 'cors',
@@ -416,6 +420,10 @@ async function fetchLetterboxdReviews(url) {
             }
         } catch (directError) {
             // Direct fetch failed (expected due to CORS), will try proxies
+            // Silently ignore CORS errors - they're expected
+            if (!directError.message || !directError.message.includes('CORS')) {
+                console.log('Direct fetch failed (expected):', directError.message);
+            }
         }
         
         // If direct fetch didn't work, try proxies
@@ -431,10 +439,26 @@ async function fetchLetterboxdReviews(url) {
             const result = await response.json();
             
             if (result.contents) {
+                let contents = result.contents;
+                
+                // Check if the response is base64-encoded (data URI format)
+                if (contents.startsWith('data:application/rss+xml') || contents.startsWith('data:text/xml')) {
+                    // Extract base64 data from data URI
+                    const base64Match = contents.match(/base64,(.+)/);
+                    if (base64Match) {
+                        try {
+                            contents = atob(base64Match[1]);
+                        } catch (e) {
+                            console.error('Failed to decode base64 data:', e);
+                            throw new Error('Failed to decode base64-encoded response');
+                        }
+                    }
+                }
+                
                 // Check if it's actually XML (RSS feeds start with <?xml or <rss)
-                const trimmed = result.contents.trim();
+                const trimmed = contents.trim();
                 if (trimmed.startsWith('<?xml') || trimmed.startsWith('<rss') || trimmed.startsWith('<feed')) {
-                    data = result.contents;
+                    data = contents;
                 } else if (trimmed.toLowerCase().includes('<html')) {
                     console.error('Received HTML instead of XML (likely an error page):', trimmed.substring(0, 300));
                     throw new Error('Received HTML error page instead of RSS feed. The user may not exist or have no reviews.');
@@ -707,6 +731,18 @@ async function fetchLetterboxdReviews(url) {
         return { reviews, username };
     } catch (error) {
         console.error('Error fetching Letterboxd reviews:', error);
+        
+        // Log detailed error information for debugging
+        const errorDetails = {
+            message: error.message,
+            url: url,
+            timestamp: new Date().toISOString(),
+            errorType: error.name || 'Unknown',
+            stack: error.stack
+        };
+        
+        console.error('Letterboxd fetch error details:', errorDetails);
+        
         throw error;
     }
 }
@@ -895,43 +931,17 @@ function renderPlaylist(url, type) {
             elements.playlistVolumeToggle.style.display = 'none';
         }
         elements.playlistContainer.innerHTML = '';
-        // Clean up YouTube player if it exists
-        if (youtubePlayer && playerReady) {
-            try {
-                youtubePlayer.destroy();
-            } catch (e) {
-                // Ignore errors
-            }
-            youtubePlayer = null;
-            playerReady = false;
-        }
+        // Clean up SoundCloud filtering if switching away (disabled for now)
+        // if (playlistType === 'soundcloud') {
+        //     cleanupSoundCloudFiltering();
+        // }
         return;
     }
 
-    // Check if YouTube player already exists and is playing the same URL
-    // If so, don't reinitialize (prevents music from restarting on page reload)
-    if (type === 'youtube' && youtubePlayer && playerReady) {
-        const playerDiv = document.getElementById('youtube-player');
-        if (playerDiv && playlistUrl === url) {
-            // Player already exists and URL matches - just update UI, don't reinitialize
-            elements.playlistSection.classList.remove('hidden');
-            if (elements.playlistVolumeToggle) {
-                elements.playlistVolumeToggle.style.display = 'block';
-                elements.playlistVolumeToggle.style.visibility = 'visible';
-            }
-            updateVolumeState();
-            return;
-        } else {
-            // URL changed or player div missing - destroy old player
-            try {
-                youtubePlayer.destroy();
-            } catch (e) {
-                // Ignore errors
-            }
-            youtubePlayer = null;
-            playerReady = false;
-        }
-    }
+    // Clean up SoundCloud filtering if switching to a different playlist type (disabled for now)
+    // if (playlistType === 'soundcloud' && type !== 'soundcloud') {
+    //     cleanupSoundCloudFiltering();
+    // }
 
     // Show volume toggle when playlist exists
     elements.playlistSection.classList.remove('hidden');
@@ -939,6 +949,12 @@ function renderPlaylist(url, type) {
     if (elements.playlistVolumeToggle) {
         elements.playlistVolumeToggle.style.display = 'block';
         elements.playlistVolumeToggle.style.visibility = 'visible';
+    }
+    
+    // Initially hide skip buttons (they'll show when unmuted)
+    if (elements.playlistSkipBackward && elements.playlistSkipForward) {
+        elements.playlistSkipBackward.classList.add('hidden');
+        elements.playlistSkipForward.classList.add('hidden');
     }
     
     let embedHtml = '';
@@ -962,20 +978,47 @@ function renderPlaylist(url, type) {
     
     elements.playlistContainer.innerHTML = embedHtml;
     
-    // Initialize YouTube player if needed
-    if (type === 'youtube') {
-        initializeYouTubePlayer(url);
-        // Don't call updateVolumeState() here - it will be called from onReady callback
-        // Just update the icon for now
-        if (elements.playlistVolumeIcon) {
-            if (playlistMuted) {
-                elements.playlistVolumeIcon.textContent = '🔇';
+    // Update volume state for all playlist types
+    updateVolumeState();
+    
+    if (type === 'apple') {
+        // Apple Music embeds require user interaction to start playback
+        // due to browser autoplay policies. The iframe is loaded but won't autoplay.
+        // User needs to click the play button inside the iframe to start playback.
+        console.log('Apple Music embed loaded. Click the play button in the player to start playback.');
+        
+        // Move the iframe from the hidden container to the body so it's visible
+        setTimeout(() => {
+            const appleMusicIframe = document.getElementById('apple-music-player');
+            if (appleMusicIframe) {
+                document.body.appendChild(appleMusicIframe);
+                console.log('Moved Apple Music iframe to body');
             } else {
-                elements.playlistVolumeIcon.textContent = '🔈';
+                console.error('Apple Music iframe not found');
             }
-        }
-    } else {
+        }, 100);
+        
         // For non-YouTube playlists, update volume state immediately
+        updateVolumeState();
+    } else if (type === 'spotify') {
+        // Spotify embeds - move to body so they're visible
+        console.log('Spotify embed loaded. Click play in the player to start.');
+        setTimeout(() => {
+            const spotifyIframe = document.getElementById('spotify-player');
+            if (spotifyIframe) {
+                document.body.appendChild(spotifyIframe);
+                console.log('Moved Spotify iframe to body');
+            } else {
+                console.error('Spotify iframe not found');
+            }
+        }, 100);
+        updateVolumeState();
+    } else if (type === 'soundcloud') {
+        // Set up SoundCloud preview track filtering (disabled for now)
+        // setupSoundCloudFiltering();
+        updateVolumeState();
+    } else {
+        // For other non-YouTube playlists, update volume state immediately
         updateVolumeState();
     }
     
@@ -1035,62 +1078,49 @@ function renderYouTubeEmbed(url) {
         return '<p class="playlist-error">invalid youtube url format</p>';
     }
     
-    // Create hidden div for YouTube IFrame API (will be replaced by API)
-    // The API needs a div element, not an iframe
-    return '<div id="youtube-player"></div>';
-}
-
-function initializeYouTubePlayer(url) {
-    // Parse URL to get video/playlist IDs
-    let playlistId = null;
-    let videoId = null;
-    
-    url = url.trim();
-    
-    const playlistMatch = url.match(/[?&]list=([a-zA-Z0-9_-]+)/);
-    if (playlistMatch) {
-        playlistId = playlistMatch[1];
-    }
-    
-    let videoMatch = url.match(/(?:youtube\.com\/watch\?v=|youtube\.com\/watch\?.*&v=)([a-zA-Z0-9_-]{11})/);
-    if (videoMatch) {
-        videoId = videoMatch[1];
-    }
-    
-    if (!videoId) {
-        videoMatch = url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
-        if (videoMatch) {
-            videoId = videoMatch[1];
-        }
-    }
-    
-    if (!videoId) {
-        videoMatch = url.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/);
-        if (videoMatch) {
-            videoId = videoMatch[1];
-        }
-    }
-    
-    if (!videoId && !playlistId) {
-        console.error('Could not parse YouTube URL for player:', url);
-        return;
-    }
-    
-    // Load YouTube IFrame API if not already loaded
-    if (!window.YT) {
-        const tag = document.createElement('script');
-        tag.src = 'https://www.youtube.com/iframe_api';
-        const firstScriptTag = document.getElementsByTagName('script')[0];
-        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        // Use youtube-nocookie.com which is YouTube's privacy-friendly embed domain
+        const domain = 'www.youtube-nocookie.com';
+        let embedUrl = '';
         
-        window.onYouTubeIframeAPIReady = () => {
-            setupYouTubePlayer(videoId, playlistId);
-        };
-    } else if (window.YT && window.YT.Player) {
-        setupYouTubePlayer(videoId, playlistId);
+        if (playlistId) {
+        // Use videoseries format for playlists
+        embedUrl = `https://${domain}/embed/videoseries?list=${playlistId}`;
+        } else if (videoId) {
+            // Single video embed
+            embedUrl = `https://${domain}/embed/${videoId}`;
+        }
+        
+        // Build query parameters
+        // IMPORTANT: mute=1 is REQUIRED for autoplay to work in modern browsers
+        const params = new URLSearchParams({
+            autoplay: '1',
+            controls: '1',
+            modestbranding: '1',
+            rel: '0',
+            mute: '1', // Always start muted - required for autoplay
+            playsinline: '1',
+            enablejsapi: '1' // Required for postMessage commands to work
+        });
+        
+        // Add params to URL (handle existing query string)
+        const separator = embedUrl.includes('?') ? '&' : '?';
+        embedUrl += separator + params.toString();
+        
+        return `
+            <iframe 
+                id="youtube-player"
+                src="${embedUrl}"
+                frameborder="0"
+                allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                referrerpolicy="no-referrer-when-downgrade"
+                style="width: 100%; height: 100%; position: fixed; top: 0; left: 0; z-index: 9998;">
+            </iframe>
+        `;
     }
-}
+    
+// Removed dead YouTube API functions - using simple iframe only
 
+/* Dead YouTube API code removed - was using YT.Player API which we no longer use
 function setupYouTubePlayer(videoId, playlistId) {
     
     // Wait for the div element to be in DOM
@@ -1103,10 +1133,20 @@ function setupYouTubePlayer(videoId, playlistId) {
         
         if (!window.YT || !window.YT.Player) {
             console.error('YouTube API not loaded yet');
-            // Try again in a bit
-            setTimeout(() => setupYouTubePlayer(videoId, playlistId), 1000);
+            // Try again in a bit, but fallback to iframe after 3 attempts
+            const retryCount = setupYouTubePlayer.retryCount || 0;
+            setupYouTubePlayer.retryCount = retryCount + 1;
+            if (retryCount < 3) {
+                setTimeout(() => setupYouTubePlayer(videoId, playlistId), 1000);
+            } else {
+                console.log('API failed to load, using simple iframe fallback');
+                createSimpleYouTubeIframe(videoId, playlistId);
+            }
             return;
         }
+        
+        // Reset retry count on success
+        setupYouTubePlayer.retryCount = 0;
         
         try {
             const playerVars = {
@@ -1126,6 +1166,11 @@ function setupYouTubePlayer(videoId, playlistId) {
                 if (videoId) {
                     // Start with specific video, then continue with playlist
                     playerVars.list = playlistId;
+                    
+                    // Track errors to skip non-embeddable videos
+                    let errorCount = 0;
+                    const maxErrors = 10;
+                    
                     youtubePlayer = new YT.Player('youtube-player', {
                         videoId: videoId,
                         playerVars: playerVars,
@@ -1136,14 +1181,7 @@ function setupYouTubePlayer(videoId, playlistId) {
                                     // Start muted to allow autoplay
                                     event.target.mute();
                                     event.target.playVideo();
-                                    
-                                    // Update volume state now that player is ready
                                     updateVolumeState();
-                                    
-                                    // Load playlist after first video
-                                    setTimeout(() => {
-                                        event.target.loadPlaylist({ list: playlistId });
-                                    }, 1000);
                                 } catch (e) {
                                     console.error('Error starting playback:', e);
                                 }
@@ -1155,34 +1193,362 @@ function setupYouTubePlayer(videoId, playlistId) {
                                 }
                             },
                             onError: (event) => {
-                                console.error('YouTube player error:', event.data);
+                                // Error 150 or 101 means video not embeddable - try next video
+                                if ((event.data === 150 || event.data === 101) && errorCount < maxErrors) {
+                                    errorCount++;
+                                    console.warn('Video not embeddable, trying next video... (attempt ' + errorCount + ')');
+                                    // Use global player reference
+                                    try {
+                                        if (youtubePlayer && typeof youtubePlayer.nextVideo === 'function') {
+                                            youtubePlayer.nextVideo();
+                                        }
+                                    } catch (e) {
+                                        console.error('Could not skip to next video:', e);
+                                    }
+                                } else if (event.data !== 150 && event.data !== 101) {
+                                    // Only show error for non-embedding issues
+                                    console.error('YouTube player error:', event.data);
+                                    handleYouTubeError(event.data);
+                                }
                             }
                         }
                     });
                 } else {
-                    // Pure playlist URL
+                    // Pure playlist URL - use standard approach with listType
                     playerVars.listType = 'playlist';
                     playerVars.list = playlistId;
+                    // Start at index 0 - YouTube will auto-skip unavailable videos
+                    playerVars.index = 0;
+                    
+                    // Track current index and errors to skip non-embeddable videos
+                    let currentIndex = 0;
+                    let errorCount = 0;
+                    let isReloading = false; // Flag to prevent multiple simultaneous reloads
+                    const maxErrors = 20; // Don't try more than 20 times
+                    
                     youtubePlayer = new YT.Player('youtube-player', {
                         playerVars: playerVars,
                         events: {
                             onReady: (event) => {
                                 playerReady = true;
+                                console.log('YouTube player ready, starting at index: 0');
+                                
+                                // Start playback immediately - if it fails, error handler will reload with next index
+                                setTimeout(() => {
                                 try {
                                     event.target.mute();
                                     event.target.playVideo();
-                                    
-                                    // Update volume state now that player is ready
                                     updateVolumeState();
                                 } catch (e) {
                                     console.error('Error starting playlist:', e);
                                 }
+                                }, 500);
                             },
                             onStateChange: (event) => {
+                                // Track current index when playing
+                                if (event.data === YT.PlayerState.PLAYING) {
+                                    try {
+                                        const newIndex = event.target.getPlaylistIndex();
+                                        if (newIndex !== -1) {
+                                            currentIndex = newIndex;
+                                        console.log('Now playing index:', currentIndex);
+                                        }
+                                    } catch (e) {
+                                        // Ignore
+                                    }
+                                }
+                                // Auto-play next video when current ends
+                                if (event.data === YT.PlayerState.ENDED) {
+                                    event.target.nextVideo();
+                                }
                             },
                             onError: (event) => {
-                                console.error('YouTube playlist error:', event.data);
-                                handleYouTubeError(event.data);
+                                // Error 150 or 101 means video not embeddable - try next video
+                                if ((event.data === 150 || event.data === 101) && errorCount < maxErrors) {
+                                    errorCount++;
+                                    console.warn('Video not embeddable, trying next video... (attempt ' + errorCount + ')');
+                                    
+                                    // Helper function to reload player with a specific index
+                                    const reloadPlayerWithIndex = (targetIndex) => {
+                                        if (targetIndex >= 5) {
+                                            // After 5 failed attempts with API, switch to iframe-nocookie strategy
+                                            console.log('API approach failing after 5 attempts, switching to iframe-nocookie');
+                                            isReloading = false;
+                                            
+                                            // Switch strategy to iframe-nocookie
+                                            youtubeEmbedStrategy = 'iframe-nocookie';
+                                            
+                                            // Destroy API player
+                                            try {
+                                                if (youtubePlayer && typeof youtubePlayer.destroy === 'function') {
+                                                    youtubePlayer.destroy();
+                                                }
+                                            } catch (e) {
+                                                // Ignore
+                                            }
+                                            youtubePlayer = null;
+                                            playerReady = false;
+                                            
+                                            // Clear and recreate with iframe
+                                            const playerDiv = document.getElementById('youtube-player');
+                                            if (playerDiv) {
+                                                playerDiv.innerHTML = '';
+                                            }
+                                            
+                                            // Re-render with iframe strategy
+                                            setTimeout(() => {
+                                                renderPlaylist(playlistUrl, playlistType);
+                                            }, 500);
+                                            return;
+                                        }
+                                        
+                                        if (targetIndex >= 20) {
+                                            // After 20 failed attempts total, try proxy as last resort
+                                            console.log('Iframe-nocookie also failing, trying iframe-only mode as last resort');
+                                            isReloading = false;
+                                            
+                                            // Switch to proxy
+                                            useYouTubeProxy = true;
+                                            youtubeEmbedStrategy = 'proxy';
+                                            
+                                            // Destroy any existing player
+                                            try {
+                                                if (youtubePlayer && typeof youtubePlayer.destroy === 'function') {
+                                                    youtubePlayer.destroy();
+                                                }
+                                            } catch (e) {
+                                                // Ignore
+                                            }
+                                            youtubePlayer = null;
+                                            playerReady = false;
+                                            
+                                            // Clear and recreate with proxy
+                                            const playerDiv = document.getElementById('youtube-player');
+                                            if (playerDiv) {
+                                                playerDiv.innerHTML = '';
+                                            }
+                                            
+                                            // Re-render with proxy
+                                            setTimeout(() => {
+                                                renderPlaylist(playlistUrl, playlistType);
+                                            }, 500);
+                                            return;
+                                        }
+                                        
+                                        // Final fallback - show error
+                                        if (targetIndex >= 50) {
+                                                console.error('Too many failed attempts, giving up');
+                                                if (elements.playlistContainer) {
+                                                    elements.playlistContainer.innerHTML = `
+                                                        <div class="playlist-error-message">
+                                                            <p>Unable to play this playlist</p>
+                                                            <p style="font-size: 0.7rem; margin-top: 0.5rem; opacity: 0.7;">
+                                                                Too many videos in this playlist have embedding disabled. Even if a playlist shows an "Embed" option in YouTube, individual videos may have embedding disabled by their creators. This is a YouTube limitation.
+                                                            </p>
+                                                            <p style="font-size: 0.7rem; margin-top: 0.5rem; opacity: 0.7;">
+                                                                Try a different playlist or check that the videos allow embedding.
+                                                            </p>
+                                                        </div>
+                                                    `;
+                                                } else {
+                                                    handleYouTubeError(150);
+                                                }
+                                                return;
+                                            }
+                                        
+                                        // Prevent multiple simultaneous reloads
+                                        if (isReloading) {
+                                            console.log('Already reloading, skipping...');
+                                            return;
+                                        }
+                                        
+                                        isReloading = true;
+                                        console.log('Reloading player starting at index ' + targetIndex);
+                                        
+                                        try {
+                                            if (youtubePlayer && typeof youtubePlayer.destroy === 'function') {
+                                                youtubePlayer.destroy();
+                                            }
+                                            
+                                            // Clear the player div
+                                            const playerDiv = document.getElementById('youtube-player');
+                                            if (playerDiv) {
+                                                playerDiv.innerHTML = '';
+                                            }
+                                            
+                                            // Wait a moment, then recreate player with new index
+                                            setTimeout(() => {
+                                                // Update playerVars to start at target index
+                                                playerVars.index = targetIndex;
+                                                currentIndex = targetIndex;
+                                                
+                                                youtubePlayer = new YT.Player('youtube-player', {
+                                                    playerVars: playerVars,
+                                                    events: {
+                                                        onReady: (event) => {
+                                                            playerReady = true;
+                                                            isReloading = false; // Reset flag when player is ready
+                                                            console.log('YouTube player reloaded, starting at index: ' + targetIndex);
+                                                            // Start playing immediately without waiting for playlist index
+                                                            setTimeout(() => {
+                                                                try {
+                                                                    event.target.mute();
+                                                                    event.target.playVideo();
+                                                                    updateVolumeState();
+                                                                } catch (e) {
+                                                                    console.error('Error starting playlist:', e);
+                                                                }
+                                                            }, 500);
+                                                        },
+                                                        onStateChange: (event) => {
+                                                            if (event.data === YT.PlayerState.PLAYING) {
+                                                                try {
+                                                                    const newIndex = event.target.getPlaylistIndex();
+                                                                    if (newIndex !== -1) {
+                                                                        currentIndex = newIndex;
+                                                                        console.log('Now playing index:', currentIndex);
+                                                                    }
+                                                                } catch (e) {
+                                                                    // Ignore
+                                                                }
+                                                            }
+                                                            if (event.data === YT.PlayerState.ENDED) {
+                                                                event.target.nextVideo();
+                                                            }
+                                                        },
+                                                        onError: (event) => {
+                                                            if ((event.data === 150 || event.data === 101) && errorCount < maxErrors) {
+                                                                errorCount++;
+                                                                console.warn('Video not embeddable at index ' + targetIndex + ', trying next... (attempt ' + errorCount + ')');
+                                                                
+                                                                // Wait longer before checking - give the player time to fully process the error
+                                                                // and potentially auto-advance if YouTube handles it
+                                                                setTimeout(() => {
+                                                                    try {
+                                                                        if (!youtubePlayer) {
+                                                                            reloadPlayerWithIndex(targetIndex + 1);
+                                                                            return;
+                                                                        }
+                                                                        
+                                                                        // Check player state - if it's playing, YouTube might have auto-advanced
+                                                                        let playerState = -1;
+                                                                        try {
+                                                                            playerState = youtubePlayer.getPlayerState();
+                                                                        } catch (e) {
+                                                                            // Player might not be ready
+                                                                        }
+                                                                        
+                                                                        // If player is playing, don't reload - YouTube handled it
+                                                                        if (playerState === YT.PlayerState.PLAYING) {
+                                                                            console.log('Player is playing, YouTube auto-advanced');
+                                                                            return;
+                                                                        }
+                                                                        
+                                                                        // Check if playlist is initialized
+                                                                        let playlistReady = false;
+                                                                        try {
+                                                                            const idx = youtubePlayer.getPlaylistIndex();
+                                                                            if (idx !== -1) {
+                                                                                playlistReady = true;
+                                                                                console.log('Playlist ready at index:', idx);
+                                                                            }
+                                                                        } catch (e) {
+                                                                            // Ignore
+                                                                        }
+                                                                        
+                                                                        if (playlistReady && typeof youtubePlayer.nextVideo === 'function') {
+                                                                            console.log('Playlist ready, using nextVideo()');
+                                                                            youtubePlayer.nextVideo();
+                                                                        } else {
+                                                                            // Playlist not ready, reload with next index
+                                                                            console.log('Playlist not ready, reloading with index ' + (targetIndex + 1));
+                                                                            reloadPlayerWithIndex(targetIndex + 1);
+                                                                        }
+                                                                    } catch (e) {
+                                                                        console.error('Could not skip to next video:', e);
+                                                                        // Reload with next index as fallback
+                                                                        reloadPlayerWithIndex(targetIndex + 1);
+                                                                    }
+                                                                }, 3000); // Wait 3 seconds before checking - give YouTube time to process
+                                } else if (errorCount >= maxErrors) {
+                                    console.error('Too many non-embeddable videos in playlist');
+                                                                // Show a more helpful error message for playlists
+                                                                if (elements.playlistContainer) {
+                                                                    elements.playlistContainer.innerHTML = `
+                                                                        <div class="playlist-error-message">
+                                                                            <p>Unable to play this playlist</p>
+                                                                            <p style="font-size: 0.7rem; margin-top: 0.5rem; opacity: 0.7;">
+                                                                                Too many videos in this playlist have embedding disabled. Even if a playlist shows an "Embed" option in YouTube, individual videos may have embedding disabled by their creators. This is a YouTube limitation.
+                                                                            </p>
+                                                                            <p style="font-size: 0.7rem; margin-top: 0.5rem; opacity: 0.7;">
+                                                                                Try a different playlist or check that the videos allow embedding.
+                                                                            </p>
+                                                                        </div>
+                                                                    `;
+                                                                } else {
+                                    handleYouTubeError(event.data);
+                                                                }
+                                                            } else if (event.data !== 150 && event.data !== 101) {
+                                                                console.error('YouTube playlist error:', event.data);
+                                                                handleYouTubeError(event.data);
+                                                            }
+                                                        }
+                                                    }
+                                                });
+                                            }, 500);
+                                        } catch (e) {
+                                            console.error('Could not reload player:', e);
+                                        }
+                                    };
+                                    
+                                    // If this is the first error and we're at index 0, the playlist might not be initialized
+                                    // In this case, we need to reload the player starting at index 1
+                                    if (errorCount === 1 && currentIndex === 0) {
+                                        reloadPlayerWithIndex(1);
+                                    } else {
+                                        // Not the first error, or not at index 0 - try nextVideo directly
+                                        setTimeout(() => {
+                                            try {
+                                                if (youtubePlayer) {
+                                                    // Try nextVideo first (works even if playlist index isn't available)
+                                                    if (typeof youtubePlayer.nextVideo === 'function') {
+                                                        console.log('Trying nextVideo()');
+                                                        youtubePlayer.nextVideo();
+                                                    } else if (typeof youtubePlayer.playVideoAt === 'function') {
+                                                        // Fallback to playVideoAt
+                                                        const nextIdx = currentIndex + 1;
+                                                        console.log('Trying playVideoAt(' + nextIdx + ')');
+                                                        youtubePlayer.playVideoAt(nextIdx);
+                                                    }
+                                                }
+                                            } catch (e) {
+                                                console.error('Could not skip to next video:', e);
+                                            }
+                                        }, 1000);
+                                    }
+                                } else if (errorCount >= maxErrors) {
+                                    console.error('Too many non-embeddable videos in playlist');
+                                    // Show a more helpful error message for playlists
+                                    if (elements.playlistContainer) {
+                                        elements.playlistContainer.innerHTML = `
+                                            <div class="playlist-error-message">
+                                                <p>Unable to play this playlist</p>
+                                                <p style="font-size: 0.7rem; margin-top: 0.5rem; opacity: 0.7;">
+                                                    Too many videos in this playlist have embedding disabled. Even if a playlist shows an "Embed" option in YouTube, individual videos may have embedding disabled by their creators. This is a YouTube limitation.
+                                                </p>
+                                                <p style="font-size: 0.7rem; margin-top: 0.5rem; opacity: 0.7;">
+                                                    Try a different playlist or check that the videos allow embedding.
+                                                </p>
+                                            </div>
+                                        `;
+                                    } else {
+                                        handleYouTubeError(event.data);
+                                    }
+                                } else if (event.data !== 150 && event.data !== 101) {
+                                    // Only show error for non-embedding issues
+                                    console.error('YouTube playlist error:', event.data);
+                                    handleYouTubeError(event.data);
+                                }
                             }
                         }
                     });
@@ -1220,6 +1586,7 @@ function setupYouTubePlayer(videoId, playlistId) {
         }
     }, 500);
 }
+*/
 
 function renderSpotifyEmbed(url) {
     // Spotify URL formats:
@@ -1235,25 +1602,25 @@ function renderSpotifyEmbed(url) {
     const type = match[1];
     const id = match[2];
     
-    // Hidden iframe for Spotify
+    // Spotify embed - make it visible and clickable
+    // Spotify embeds work well and don't require subscription for free tier
+    console.log('Spotify embed:', type, id);
     return `
         <iframe 
             id="spotify-player"
-            style="display: none;" 
-            src="https://open.spotify.com/embed/${type}/${id}?utm_source=generator&theme=0&autoplay=true" 
-            width="0" 
-            height="0" 
+            style="position: fixed; bottom: 20px; right: 20px; width: 352px; height: 152px; border-radius: 12px; z-index: 9999; border: none; box-shadow: 0 8px 24px rgba(0,0,0,0.4);" 
+            src="https://open.spotify.com/embed/${type}/${id}?utm_source=generator&theme=0" 
             frameborder="0" 
-            allowfullscreen="" 
             allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
-            loading="lazy">
+            loading="eager">
         </iframe>
     `;
 }
 
 function renderSoundCloudEmbed(url) {
     // SoundCloud URL: https://soundcloud.com/user/set/playlist-name
-    // Hidden iframe for SoundCloud
+    // Hidden iframe for SoundCloud - supports play/pause via postMessage
+    // Preview track filtering is disabled for now
     
     return `
         <iframe 
@@ -1262,12 +1629,269 @@ function renderSoundCloudEmbed(url) {
             height="0" 
             scrolling="no" 
             frameborder="no" 
-            allow="autoplay" 
+            allow="autoplay; encrypted-media" 
             src="https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23ff69b4&auto_play=true&hide_related=true&show_comments=false&show_user=false&show_reposts=false&show_teaser=false&visual=false"
             style="display: none;">
         </iframe>
     `;
 }
+
+/* SoundCloud preview filtering - disabled for now
+// Store SoundCloud filtering state for cleanup
+let soundCloudFilteringState = null;
+// Filter out preview-only tracks from SoundCloud playlists
+// Preview tracks are typically 30 seconds and require Go+ subscription
+function setupSoundCloudFiltering() {
+    // Clean up any existing filtering first
+    if (soundCloudFilteringState) {
+        if (soundCloudFilteringState.messageHandler) {
+            window.removeEventListener('message', soundCloudFilteringState.messageHandler);
+        }
+        if (soundCloudFilteringState.checkInterval) {
+            clearInterval(soundCloudFilteringState.checkInterval);
+        }
+        if (soundCloudFilteringState.skipCheckTimeout) {
+            clearTimeout(soundCloudFilteringState.skipCheckTimeout);
+        }
+    }
+    
+    const soundcloudIframe = document.getElementById('soundcloud-player');
+    if (!soundcloudIframe) {
+        // Retry after a short delay if iframe isn't ready yet
+        setTimeout(setupSoundCloudFiltering, 500);
+        return;
+    }
+    
+    let currentTrackDuration = null;
+    let trackStartTime = null;
+    let skipCheckTimeout = null;
+    let isCheckingTrack = false;
+    let checkInterval = null;
+    
+    // Listen for messages from SoundCloud widget
+    // The widget broadcasts events via postMessage with specific event types
+    const messageHandler = (event) => {
+        // Only accept messages from SoundCloud
+        if (event.origin !== 'https://w.soundcloud.com') return;
+        
+        try {
+            // SoundCloud widget sends events in different formats
+            // Try to parse as JSON first
+            let data;
+            if (typeof event.data === 'string') {
+                try {
+                    data = JSON.parse(event.data);
+                } catch (e) {
+                    // Not JSON, might be a different format
+                    return;
+                }
+            } else {
+                data = event.data;
+            }
+            
+            // Debug: log all SoundCloud events to see what we're getting
+            if (data && (data.method || data.event || data.type)) {
+                console.log('SoundCloud event:', data);
+            }
+            
+            // SoundCloud widget events can come in different formats:
+            // 1. Widget API format: { method: 'getCurrentSound', value: {...} }
+            // 2. Event format: { event: 'onMediaStart', data: {...} }
+            // 3. Progress format: { type: 'progress', currentPosition: 123, duration: 456 }
+            
+            // Listen for track start events
+            if (data.event === 'onMediaStart' || (data.method === 'getCurrentSound' && data.value)) {
+                const sound = data.data || data.value;
+                if (sound) {
+                    const duration = sound.duration || sound.duration_ms / 1000;
+                    const title = sound.title || sound.permalink || 'Unknown';
+                    
+                    if (duration) {
+                        currentTrackDuration = duration;
+                        trackStartTime = Date.now();
+                        isCheckingTrack = true;
+                        
+                        console.log(`Track started: "${title}" (${duration}s)`);
+                        
+                        // Preview tracks are typically 30 seconds or less
+                        // Also check for tracks that are suspiciously short (under 60 seconds)
+                        const PREVIEW_THRESHOLD = 60; // seconds
+                        
+                        if (currentTrackDuration < PREVIEW_THRESHOLD) {
+                            console.log(`⚠️ Skipping preview track: "${title}" (${currentTrackDuration}s)`);
+                            
+                            // Skip to next track immediately
+                            setTimeout(() => {
+                                if (soundcloudIframe && soundcloudIframe.contentWindow) {
+                                    soundcloudIframe.contentWindow.postMessage(JSON.stringify({
+                                        method: 'next'
+                                    }), 'https://w.soundcloud.com');
+                                    console.log('Sent skip command to SoundCloud widget');
+                                }
+                            }, 1000); // Give it a moment to start playing
+                            return;
+                        }
+                        
+                        // Set up a check to see if track ends early (another sign of preview)
+                        if (skipCheckTimeout) clearTimeout(skipCheckTimeout);
+                        skipCheckTimeout = setTimeout(() => {
+                            // Check if track ended at exactly its duration (preview sign)
+                            if (isCheckingTrack && currentTrackDuration) {
+                                const elapsed = (Date.now() - trackStartTime) / 1000;
+                                // If we're close to the duration, it might have ended
+                                if (elapsed >= currentTrackDuration - 2 && elapsed <= currentTrackDuration + 3) {
+                                    console.log(`⚠️ Track ended at ${elapsed}s (duration: ${currentTrackDuration}s) - likely preview, skipping`);
+                                    if (soundcloudIframe && soundcloudIframe.contentWindow) {
+                                        soundcloudIframe.contentWindow.postMessage(JSON.stringify({
+                                            method: 'next'
+                                        }), 'https://w.soundcloud.com');
+                                    }
+                                }
+                            }
+                        }, (currentTrackDuration + 3) * 1000); // Check 3 seconds after track should end
+                        // Update state with new timeout
+                        if (soundCloudFilteringState) {
+                            soundCloudFilteringState.skipCheckTimeout = skipCheckTimeout;
+                        }
+                    }
+                }
+            }
+            
+            // Listen for track end events
+            if (data.event === 'onMediaEnd' || data.event === 'onFinish') {
+                if (currentTrackDuration && trackStartTime) {
+                    const elapsed = (Date.now() - trackStartTime) / 1000;
+                    console.log(`Track ended after ${elapsed}s (expected: ${currentTrackDuration}s)`);
+                    
+                    // If track ended significantly before its duration, it might be a preview
+                    if (elapsed < currentTrackDuration * 0.8 && elapsed < 35) {
+                        console.log('⚠️ Track ended early, likely preview - skipping to next');
+                        if (soundcloudIframe && soundcloudIframe.contentWindow) {
+                            setTimeout(() => {
+                                soundcloudIframe.contentWindow.postMessage(JSON.stringify({
+                                    method: 'next'
+                                }), 'https://w.soundcloud.com');
+                            }, 500);
+                        }
+                    }
+                }
+                // Reset tracking
+                isCheckingTrack = false;
+                currentTrackDuration = null;
+                trackStartTime = null;
+                positionCheckCount = 0;
+            }
+            
+            // When playback starts, begin tracking (fallback if onMediaStart doesn't fire)
+            if (data.event === 'onPlay' || data.event === 'onPlayStart') {
+                if (!isCheckingTrack) {
+                    trackStartTime = Date.now();
+                    isCheckingTrack = true;
+                    positionCheckCount = 0;
+                    console.log('Playback started, beginning preview detection...');
+                }
+            }
+            
+            // Listen for progress updates to detect early endings
+            if (data.type === 'progress' || (data.method === 'getPosition' && typeof data.value === 'number')) {
+                const position = data.currentPosition || data.value || 0;
+                const duration = data.duration || currentTrackDuration;
+                
+                // If position resets to 0 while we're tracking, track might have ended
+                if (position === 0 && currentTrackDuration && trackStartTime && duration) {
+                    const elapsed = (Date.now() - trackStartTime) / 1000;
+                    // If we're at position 0 but haven't played the full duration, it might be a preview
+                    if (elapsed < duration * 0.9 && elapsed < 35) {
+                        console.log(`⚠️ Position reset early (${elapsed}s / ${duration}s) - likely preview`);
+                        if (soundcloudIframe && soundcloudIframe.contentWindow) {
+                            setTimeout(() => {
+                                soundcloudIframe.contentWindow.postMessage(JSON.stringify({
+                                    method: 'next'
+                                }), 'https://w.soundcloud.com');
+                            }, 500);
+                        }
+                    }
+                }
+            }
+            
+        } catch (e) {
+            // Not a JSON message or invalid format, ignore
+            console.debug('SoundCloud message parse error:', e);
+        }
+    };
+    
+    // Add event listener
+    window.addEventListener('message', messageHandler);
+    
+    // Periodically request track info to detect previews
+    // This helps catch tracks that start playing before we get events
+    let lastPosition = null;
+    let positionCheckCount = 0;
+    
+    checkInterval = setInterval(() => {
+        if (soundcloudIframe && soundcloudIframe.contentWindow) {
+            // Request current sound info - widget may respond via postMessage
+            try {
+                soundcloudIframe.contentWindow.postMessage(JSON.stringify({
+                    method: 'getCurrentSound'
+                }), 'https://w.soundcloud.com');
+                
+                // Also request position to detect early endings
+                soundcloudIframe.contentWindow.postMessage(JSON.stringify({
+                    method: 'getPosition'
+                }), 'https://w.soundcloud.com');
+                
+                // Simple time-based detection: if we've been tracking a track and it's been ~30 seconds
+                // and we don't have duration info, it might be a preview
+                if (isCheckingTrack && trackStartTime && !currentTrackDuration) {
+                    const elapsed = (Date.now() - trackStartTime) / 1000;
+                    positionCheckCount++;
+                    
+                    // If we've been checking for a while and no duration info, try to detect 30-second previews
+                    if (positionCheckCount > 10 && elapsed > 28 && elapsed < 32) {
+                        console.log(`⚠️ Track playing for ~30s with no duration info - likely preview, skipping`);
+                        if (soundcloudIframe && soundcloudIframe.contentWindow) {
+                            soundcloudIframe.contentWindow.postMessage(JSON.stringify({
+                                method: 'next'
+                            }), 'https://w.soundcloud.com');
+                            // Reset tracking
+                            isCheckingTrack = false;
+                            currentTrackDuration = null;
+                            trackStartTime = null;
+                            positionCheckCount = 0;
+                        }
+                    }
+                }
+            } catch (e) {
+                // Ignore errors
+            }
+        }
+    }, 1000); // Check every second for more responsive detection
+    
+    // Store state for cleanup
+    soundCloudFilteringState = {
+        messageHandler,
+        checkInterval,
+        skipCheckTimeout
+    };
+}
+
+// Clean up SoundCloud filtering when switching away from SoundCloud
+function cleanupSoundCloudFiltering() {
+    if (soundCloudFilteringState) {
+        if (soundCloudFilteringState.messageHandler) {
+            window.removeEventListener('message', soundCloudFilteringState.messageHandler);
+        }
+        if (soundCloudFilteringState.checkInterval) {
+            clearInterval(soundCloudFilteringState.checkInterval);
+        }
+        if (soundCloudFilteringState.skipCheckTimeout) {
+            clearTimeout(soundCloudFilteringState.skipCheckTimeout);
+        }
+        soundCloudFilteringState = null;
+    }
+}
+*/
 
 function renderAppleMusicEmbed(url) {
     // Apple Music URL formats:
@@ -1276,14 +1900,18 @@ function renderAppleMusicEmbed(url) {
     // - Album: https://music.apple.com/us/album/album-name/xxxxx
     // - Song: https://music.apple.com/us/song/song-name/xxxxx
     
+    // Clean the URL
+    url = url.trim();
+    
     // Extract playlist/album/song ID and type
     // Pattern: music.apple.com/[country/]playlist|album|song/name/id
-    const playlistMatch = url.match(/music\.apple\.com\/(?:[a-z]{2}\/)?playlist\/[^/]+\/(pl\.[a-zA-Z0-9]+)/);
-    const albumMatch = url.match(/music\.apple\.com\/(?:[a-z]{2}\/)?album\/[^/]+\/([a-zA-Z0-9]+)/);
-    const songMatch = url.match(/music\.apple\.com\/(?:[a-z]{2}\/)?song\/[^/]+\/([a-zA-Z0-9]+)/);
+    // More flexible regex to handle various URL formats
+    const playlistMatch = url.match(/music\.apple\.com\/(?:[a-z]{2}\/)?playlist\/[^/]+\/(pl\.[a-zA-Z0-9._-]+)/i);
+    const albumMatch = url.match(/music\.apple\.com\/(?:[a-z]{2}\/)?album\/[^/]+\/([a-zA-Z0-9]+)/i);
+    const songMatch = url.match(/music\.apple\.com\/(?:[a-z]{2}\/)?song\/[^/]+\/([a-zA-Z0-9]+)/i);
     
     // Extract country code (default to 'us' if not found)
-    const countryMatch = url.match(/music\.apple\.com\/([a-z]{2})\//);
+    const countryMatch = url.match(/music\.apple\.com\/([a-z]{2})\//i);
     const country = countryMatch ? countryMatch[1] : 'us';
     
     let embedUrl = '';
@@ -1302,21 +1930,26 @@ function renderAppleMusicEmbed(url) {
         embedUrl = `https://embed.music.apple.com/${country}/song/${songId}`;
         type = 'song';
     } else {
-        return '<p class="playlist-error">invalid apple music url</p>';
+        console.error('Could not parse Apple Music URL:', url);
+        return '<p class="playlist-error">invalid apple music url format</p>';
     }
     
-    // Hidden iframe for Apple Music
+    // Apple Music embeds need to be visible and clickable
+    // User MUST click inside the iframe to start playback (no API control available)
+    // Make it larger for easier interaction
+    console.log('Apple Music embed URL:', embedUrl);
+    // Try different URL format - Apple Music might need specific parameters
+    const embedSrc = `${embedUrl}?app=music`;
+    console.log('Full embed src:', embedSrc);
+    
     return `
         <iframe 
             id="apple-music-player"
-            style="display: none;" 
-            src="${embedUrl}?app=music" 
-            width="0" 
-            height="0" 
+            style="position: fixed; bottom: 20px; right: 20px; width: 450px; height: 300px; border-radius: 12px; z-index: 9999; border: 2px solid #fa2d48; box-shadow: 0 8px 24px rgba(0,0,0,0.4); pointer-events: auto; background: white;" 
+            src="${embedSrc}" 
             frameborder="0" 
-            allowfullscreen="" 
-            allow="autoplay; encrypted-media" 
-            loading="lazy">
+            allow="autoplay; encrypted-media; fullscreen"
+            loading="eager">
         </iframe>
     `;
 }
@@ -1373,7 +2006,7 @@ function handleYouTubeError(errorCode) {
             break;
         case 101:
         case 150:
-            errorMessage = 'This video does not allow embedding. Please try a different video or playlist.';
+            errorMessage = 'This video does not allow embedding.';
             break;
         default:
             errorMessage = 'Error playing video (code: ' + errorCode + ')';
@@ -1383,11 +2016,18 @@ function handleYouTubeError(errorCode) {
     
     // Show error message in the playlist container
     if (elements.playlistContainer) {
+        let helpText = 'Try a different video or check that embedding is enabled.';
+        
+        // Special message for embedding errors (101, 150) - explain playlist limitation
+        if (errorCode === 101 || errorCode === 150) {
+            helpText = 'Note: Even if a playlist shows an "Embed" option in YouTube, individual videos within the playlist may have embedding disabled by their creators. This is a YouTube limitation, not an issue with this app.';
+        }
+        
         elements.playlistContainer.innerHTML = `
             <div class="playlist-error-message">
                 <p>${errorMessage}</p>
                 <p style="font-size: 0.7rem; margin-top: 0.5rem; opacity: 0.7;">
-                    Try a different video or check that embedding is enabled.
+                    ${helpText}
                 </p>
             </div>
         `;
@@ -1398,35 +2038,61 @@ function togglePlaylistVolume() {
     playlistMuted = !playlistMuted;
     updateVolumeState();
     
-    // Control YouTube player if available and ready
-    if (youtubePlayer && playerReady) {
-        try {
-            // Check if player methods are available
-            if (typeof youtubePlayer.mute === 'function' && typeof youtubePlayer.unMute === 'function') {
+    // Hide the sticker once clicked
+    if (elements.playlistSticker) {
+        elements.playlistSticker.style.display = 'none';
+    }
+    
+    // Control YouTube iframe via postMessage
+    if (playlistType === 'youtube') {
+        const youtubeIframe = document.getElementById('youtube-player');
+        if (youtubeIframe && youtubeIframe.tagName === 'IFRAME' && youtubeIframe.contentWindow) {
+            try {
                 if (playlistMuted) {
-                    youtubePlayer.mute();
-                    // Player muted
+                    youtubeIframe.contentWindow.postMessage('{"event":"command","func":"mute","args":""}', '*');
                 } else {
-                    youtubePlayer.unMute();
-                    
-                    // If player wasn't playing, start it now (user interaction allows sound)
-                    try {
-                        const state = youtubePlayer.getPlayerState();
-                        if (state === YT.PlayerState.PAUSED || state === YT.PlayerState.CUED) {
-                            youtubePlayer.playVideo();
-                        }
-                    } catch (stateError) {
-                        // Player state might not be available yet
-                    }
-                }
+                    youtubeIframe.contentWindow.postMessage('{"event":"command","func":"unMute","args":""}', '*');
+                    youtubeIframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
             }
         } catch (e) {
-            console.error('Could not control YouTube volume:', e);
+                console.error('Could not control YouTube iframe:', e);
+            }
         }
     }
     
-    // For Spotify/SoundCloud, we can't control volume directly
-    // The iframes are hidden anyway, so just update the icon
+    // Control SoundCloud via postMessage
+    if (playlistType === 'soundcloud') {
+        const soundcloudIframe = document.getElementById('soundcloud-player');
+        if (soundcloudIframe && soundcloudIframe.contentWindow) {
+            try {
+                if (playlistMuted) {
+                    // Pause SoundCloud
+                    soundcloudIframe.contentWindow.postMessage(JSON.stringify({
+                        method: 'pause'
+                    }), 'https://w.soundcloud.com');
+                } else {
+                    // Play SoundCloud
+                    soundcloudIframe.contentWindow.postMessage(JSON.stringify({
+                        method: 'play'
+                    }), 'https://w.soundcloud.com');
+                }
+            } catch (e) {
+                console.error('Could not control SoundCloud iframe:', e);
+            }
+        }
+    }
+    
+    // For Apple Music, try to trigger playback on user interaction
+    if (playlistType === 'apple' && !playlistMuted) {
+        try {
+            const appleMusicIframe = document.getElementById('apple-music-player');
+            if (appleMusicIframe) {
+                appleMusicIframe.focus();
+            }
+        } catch (e) {
+            console.error('Could not interact with Apple Music player:', e);
+        }
+    }
 }
 
 function updateVolumeState() {
@@ -1438,38 +2104,66 @@ function updateVolumeState() {
         }
     }
     
-    // Apply mute to YouTube player if available and ready
-    if (youtubePlayer && playerReady) {
-        try {
-            // Additional check: ensure player is actually attached to DOM
-            // The YouTube API requires the player to be in the DOM before calling methods
-            const playerDiv = document.getElementById('youtube-player');
-            if (!playerDiv) {
-                // Player div not found, skip API calls
-                return;
-            }
-            
-            // Check if player methods are available and player state is valid
-            if (typeof youtubePlayer.mute === 'function' && typeof youtubePlayer.unMute === 'function') {
-                // Try to get player state to verify it's ready
-                try {
-                    const state = youtubePlayer.getPlayerState();
-                    // If we can get the state, player is ready
-                    if (playlistMuted) {
-                        youtubePlayer.mute();
-                    } else {
-                        youtubePlayer.unMute();
-                    }
-                } catch (stateError) {
-                    // Player state not available yet, skip mute/unmute
-                    // This prevents the "player not attached to DOM" warning
-                }
-            }
-        } catch (e) {
-            // Player not ready yet or methods not available
-            // Silently ignore - this is expected during initialization
+    // Show/hide skip buttons when unmuted
+    if (elements.playlistSkipBackward && elements.playlistSkipForward) {
+        if (playlistMuted) {
+            elements.playlistSkipBackward.classList.add('hidden');
+            elements.playlistSkipForward.classList.add('hidden');
+        } else {
+            elements.playlistSkipBackward.classList.remove('hidden');
+            elements.playlistSkipForward.classList.remove('hidden');
         }
     }
+}
+
+function skipPlaylistBackward() {
+    if (playlistType === 'youtube') {
+        const youtubeIframe = document.getElementById('youtube-player');
+        if (youtubeIframe && youtubeIframe.tagName === 'IFRAME' && youtubeIframe.contentWindow) {
+            try {
+                youtubeIframe.contentWindow.postMessage('{"event":"command","func":"previousVideo","args":""}', '*');
+            } catch (e) {
+                console.error('Could not skip YouTube backward:', e);
+            }
+        }
+    } else if (playlistType === 'soundcloud') {
+        const soundcloudIframe = document.getElementById('soundcloud-player');
+        if (soundcloudIframe && soundcloudIframe.contentWindow) {
+            try {
+                soundcloudIframe.contentWindow.postMessage(JSON.stringify({
+                    method: 'prev'
+                }), 'https://w.soundcloud.com');
+            } catch (e) {
+                console.error('Could not skip SoundCloud backward:', e);
+            }
+        }
+    }
+    // Spotify and Apple Music don't support programmatic skip via iframe
+}
+
+function skipPlaylistForward() {
+    if (playlistType === 'youtube') {
+        const youtubeIframe = document.getElementById('youtube-player');
+        if (youtubeIframe && youtubeIframe.tagName === 'IFRAME' && youtubeIframe.contentWindow) {
+            try {
+                youtubeIframe.contentWindow.postMessage('{"event":"command","func":"nextVideo","args":""}', '*');
+        } catch (e) {
+                console.error('Could not skip YouTube forward:', e);
+            }
+        }
+    } else if (playlistType === 'soundcloud') {
+        const soundcloudIframe = document.getElementById('soundcloud-player');
+        if (soundcloudIframe && soundcloudIframe.contentWindow) {
+            try {
+                soundcloudIframe.contentWindow.postMessage(JSON.stringify({
+                    method: 'next'
+                }), 'https://w.soundcloud.com');
+            } catch (e) {
+                console.error('Could not skip SoundCloud forward:', e);
+            }
+        }
+    }
+    // Spotify and Apple Music don't support programmatic skip via iframe
 }
 
 async function handleSavePlaylist() {
@@ -1881,6 +2575,9 @@ async function checkAuthState() {
         // Load reviews for current user only
         letterboxdReviews = await loadLetterboxdReviews(currentUsername);
         renderLetterboxdReviews();
+        
+        // Start automatic polling for new reviews
+        startLetterboxdPolling();
     } else {
         // Load public data
         updateAppStatus('loading public data...', 'info');
@@ -2070,6 +2767,9 @@ async function signOut() {
     
     // Clean up real-time subscriptions
     cleanupRealtimeSubscriptions();
+    
+    // Stop automatic polling when signed out
+    stopLetterboxdPolling();
     
     updateUIForAuth();
     
@@ -2363,6 +3063,9 @@ async function handleCreatePost() {
     const newPost = await createPost(content, tag);
     
     if (newPost) {
+        // Trigger kiss emoji explosion
+        triggerKissExplosion();
+        
         // Save tag to history (except suggestions)
         if (tag) {
             saveTagToHistory(tag);
@@ -2499,6 +3202,9 @@ async function handleCreateSuggestion() {
     const newSuggestion = await createSuggestion(content);
     
     if (newSuggestion) {
+        // Trigger kiss emoji explosion
+        triggerKissExplosion();
+        
         // Update local state
         suggestions.push(newSuggestion);
         elements.suggestContent.value = '';
@@ -2612,6 +3318,12 @@ function renderLetterboxdReviews() {
         elements.letterboxdReviewsContainer.classList.remove('hidden');
     }
     
+    // Update toggle all button text based on current selection state
+    if (elements.letterboxdToggleAll) {
+        const allSelected = letterboxdReviews.length > 0 && letterboxdReviews.every(review => review.is_selected);
+        elements.letterboxdToggleAll.textContent = allSelected ? 'deselect all' : 'select all';
+    }
+    
     elements.letterboxdReviewsList.innerHTML = letterboxdReviews.map(review => {
         const reviewTitle = `${review.film_title}${review.film_year ? ` (${review.film_year})` : ''}`;
         const reviewPreview = review.review_text ? 
@@ -2619,7 +3331,7 @@ function renderLetterboxdReviews() {
             '';
         
         return `
-            <div class="letterboxd-review-item">
+            <div class="letterboxd-review-item ${review.is_selected ? 'review-selected' : 'review-unselected'}">
                 <label class="letterboxd-review-checkbox">
                     <input type="checkbox" ${review.is_selected ? 'checked' : ''} data-id="${review.id}">
                     <div class="letterboxd-review-content">
@@ -2644,6 +3356,12 @@ function renderLetterboxdReviews() {
                 const review = letterboxdReviews.find(r => r.id === reviewId);
                 if (review) {
                     review.is_selected = isSelected;
+                }
+                
+                // Update toggle all button text based on current selection state
+                if (elements.letterboxdToggleAll) {
+                    const allSelected = letterboxdReviews.every(r => r.is_selected);
+                    elements.letterboxdToggleAll.textContent = allSelected ? 'deselect all' : 'select all';
                 }
                 
                 // Refresh the feed immediately
@@ -2678,6 +3396,9 @@ async function handleFetchLetterboxdReviews() {
         // Save URL
         await saveLetterboxdUrl(url);
         letterboxdUrl = url;
+        
+        // Start/restart automatic polling with new URL
+        startLetterboxdPolling();
         
         // Fetch reviews
         const result = await fetchLetterboxdReviews(url);
@@ -2751,6 +3472,212 @@ async function handleSaveLetterboxdSelection() {
     }
     
     elements.letterboxdSaveSelection.disabled = false;
+}
+
+async function handleToggleAllReviews() {
+    if (!isAuthenticated || letterboxdReviews.length === 0) {
+        return;
+    }
+    
+    // Check if all are selected
+    const allSelected = letterboxdReviews.every(review => review.is_selected);
+    const newSelectionState = !allSelected;
+    
+    // Update button text
+    elements.letterboxdToggleAll.textContent = newSelectionState ? 'deselect all' : 'select all';
+    elements.letterboxdToggleAll.disabled = true;
+    
+    try {
+        // Update all reviews in parallel
+        const updatePromises = letterboxdReviews.map(review => 
+            updateReviewSelection(review.id, newSelectionState)
+        );
+        
+        await Promise.all(updatePromises);
+        
+        // Update local state
+        letterboxdReviews.forEach(review => {
+            review.is_selected = newSelectionState;
+        });
+        
+        // Re-render to update checkboxes and visual state
+        renderLetterboxdReviews();
+        
+        // Refresh the feed
+        const data = await fetchData();
+        posts = data.posts;
+        renderPosts();
+        
+    } catch (error) {
+        console.error('Error toggling all reviews:', error);
+        alert('Failed to toggle selection: ' + error.message);
+    }
+    
+    elements.letterboxdToggleAll.disabled = false;
+}
+
+// ============================================
+// Automatic Letterboxd Review Polling
+// ============================================
+
+/**
+ * Automatically fetch new reviews from the configured Letterboxd URL
+ * This runs periodically to check for new reviews
+ */
+async function pollForNewLetterboxdReviews() {
+    if (!isAuthenticated || !letterboxdUrl) {
+        return; // Only poll when authenticated and URL is set
+    }
+    
+    try {
+        console.log('Polling for new Letterboxd reviews...');
+        
+        // Fetch reviews from the saved URL
+        const result = await fetchLetterboxdReviews(letterboxdUrl);
+        const reviews = result.reviews;
+        const fetchedUsername = result.username;
+        
+        if (reviews.length === 0) {
+            console.log('No reviews found during polling');
+            return;
+        }
+        
+        // Save reviews (this will preserve is_selected for existing reviews)
+        await saveLetterboxdReviews(reviews, fetchedUsername);
+        
+        // Reload reviews to get updated list
+        letterboxdReviews = await loadLetterboxdReviews(fetchedUsername);
+        renderLetterboxdReviews();
+        
+        // Refresh the feed to show any newly selected reviews
+        const data = await fetchData();
+        posts = data.posts;
+        renderPosts();
+        
+        console.log(`Polling complete: ${reviews.length} reviews processed`);
+    } catch (error) {
+        console.error('Error during automatic polling:', error);
+        
+        // Log detailed error information for debugging
+        const errorDetails = {
+            message: error.message,
+            url: letterboxdUrl,
+            timestamp: new Date().toISOString(),
+            errorType: error.name || 'Unknown'
+        };
+        
+        console.error('Letterboxd polling error details:', errorDetails);
+        
+        // Show a non-intrusive status message for persistent errors
+        // Only show if it's a network/proxy error (not user-related like "no reviews")
+        if (error.message && (
+            error.message.includes('proxy') || 
+            error.message.includes('CORS') || 
+            error.message.includes('fetch') ||
+            error.message.includes('network')
+        )) {
+            updateAppStatus(`letterboxd polling error: ${error.message.substring(0, 50)}...`, 'warning');
+            // Auto-hide after 5 seconds
+            setTimeout(() => hideAppStatus(), 5000);
+        }
+        
+        // Don't show alerts for polling errors - just log them
+    }
+}
+
+/**
+ * Start automatic polling for new Letterboxd reviews
+ * Polls every hour (3600000 ms)
+ */
+function startLetterboxdPolling() {
+    if (!letterboxdUrl || !isAuthenticated) {
+        // No URL configured or not authenticated, don't poll
+        stopLetterboxdPolling(); // Make sure any existing polling is stopped
+        return;
+    }
+    
+    // Check if polling is already running (prevent duplicate calls)
+    if (letterboxdPollInterval) {
+        // Already running, no need to restart
+        return;
+    }
+    
+    // Clear any existing interval to prevent duplicates (shouldn't happen due to check above, but just in case)
+    stopLetterboxdPolling();
+    
+    // Poll immediately on start (after a short delay to avoid blocking initialization)
+    setTimeout(() => {
+        if (isAuthenticated && letterboxdUrl && !letterboxdPollInterval) {
+            // Double-check interval wasn't set while waiting
+            if (!letterboxdPollInterval) {
+                pollForNewLetterboxdReviews();
+            }
+        }
+    }, 5000); // Wait 5 seconds after initialization
+    
+    // Then poll every hour
+    letterboxdPollInterval = setInterval(() => {
+        if (isAuthenticated && letterboxdUrl) {
+            pollForNewLetterboxdReviews();
+        } else {
+            // Stop polling if no longer authenticated or URL removed
+            stopLetterboxdPolling();
+        }
+    }, 3600000); // 1 hour = 3600000 ms
+    
+    console.log('Letterboxd automatic polling started (every hour)');
+}
+
+/**
+ * Stop automatic polling for new Letterboxd reviews
+ */
+function stopLetterboxdPolling() {
+    if (letterboxdPollInterval) {
+        clearInterval(letterboxdPollInterval);
+        letterboxdPollInterval = null;
+        // Only log if we're actually stopping something (not just being called as a safety check)
+    }
+}
+
+// ============================================
+// Kiss Emoji Explosion
+// ============================================
+
+function triggerKissExplosion() {
+    const explosion = document.createElement('div');
+    explosion.className = 'kiss-explosion';
+    document.body.appendChild(explosion);
+    
+    const emojiCount = 30;
+    const centerX = window.innerWidth / 2;
+    const centerY = window.innerHeight / 2;
+    
+    for (let i = 0; i < emojiCount; i++) {
+        const emoji = document.createElement('span');
+        emoji.className = 'kiss-emoji';
+        emoji.textContent = '💋';
+        
+        // Random angle and distance for explosion
+        const angle = (Math.PI * 2 * i) / emojiCount + (Math.random() - 0.5) * 0.5;
+        const distance = 150 + Math.random() * 100;
+        const randomX = Math.cos(angle) * distance;
+        const randomY = Math.sin(angle) * distance;
+        const randomRotate = (Math.random() - 0.5) * 720; // Random rotation up to 360 degrees
+        
+        emoji.style.setProperty('--random-x', `${randomX}px`);
+        emoji.style.setProperty('--random-y', `${randomY}px`);
+        emoji.style.setProperty('--random-rotate', `${randomRotate}deg`);
+        
+        // Random delay for staggered effect
+        emoji.style.animationDelay = `${Math.random() * 0.2}s`;
+        
+        explosion.appendChild(emoji);
+    }
+    
+    // Remove the explosion container after animation completes
+    setTimeout(() => {
+        explosion.remove();
+    }, 2000);
 }
 
 // ============================================
@@ -3162,6 +4089,10 @@ function setupEventListeners() {
         
         // Focus handler - enters fullscreen when textarea is focused
         elements.postContent.addEventListener('focus', () => {
+            // Don't enter fullscreen if we're just focusing textarea to enable tag input
+            if (elements.writePanel._isFocusingTagInput) {
+                return;
+            }
             // Only enter fullscreen if not already in fullscreen
             if (!elements.writePanel.classList.contains('write-panel-fullscreen')) {
                 enterFullscreen();
@@ -3200,6 +4131,10 @@ function setupEventListeners() {
             const target = e.target;
             // Don't interfere with button clicks
             if (target.tagName === 'BUTTON' || target.closest('button')) {
+                return;
+            }
+            // Don't interfere with tag input clicks - let the tag input handle its own focus
+            if (target === elements.postTag || target.closest('.write-tag-section') || target.closest('#tag-suggestions')) {
                 return;
             }
             // If clicking anywhere in the panel (not a button), focus the textarea
@@ -3255,24 +4190,43 @@ function setupEventListeners() {
     if (elements.postTag && elements.writePanel) {
         // When tag input is focused, ensure panel is in fullscreen
         // If panel is not already fullscreen, trigger it by focusing textarea first
+        let isHandlingTagFocus = false;
         const ensureFullscreen = () => {
+            // Prevent multiple simultaneous calls
+            if (isHandlingTagFocus) return;
+            isHandlingTagFocus = true;
+            
             if (window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-                    if (!elements.writePanel.classList.contains('write-panel-fullscreen')) {
+                if (!elements.writePanel.classList.contains('write-panel-fullscreen')) {
                     // Panel not in fullscreen, trigger the main fullscreen logic
-                    // by programmatically triggering focus on textarea
+                    // Set flag to prevent textarea focus handler from interfering
+                    elements.writePanel._isFocusingTagInput = true;
+                    // Focus textarea briefly to trigger fullscreen entry
                     elements.postContent.focus();
                     // Then immediately focus the tag input
                     setTimeout(() => {
-            elements.postTag.focus();
-                    }, 50);
+                        elements.postTag.focus();
+                        isHandlingTagFocus = false;
+                        // Clear flag after a short delay
+                        setTimeout(() => {
+                            elements.writePanel._isFocusingTagInput = false;
+                        }, 100);
+                    }, 10); // Reduced delay for faster response
+                } else {
+                    // Already fullscreen, just ensure tag input is focused
+                    if (document.activeElement !== elements.postTag) {
+                        elements.postTag.focus();
+                    }
+                    isHandlingTagFocus = false;
                 }
                 // If already fullscreen, the viewport listeners from main handler will keep it updated
+            } else {
+                isHandlingTagFocus = false;
             }
         };
         
+        // Only use focus event - click and touchstart will naturally trigger focus
         elements.postTag.addEventListener('focus', ensureFullscreen);
-        elements.postTag.addEventListener('click', ensureFullscreen);
-        elements.postTag.addEventListener('touchstart', ensureFullscreen);
         
         // No blur handler needed - the main textarea blur handler will handle exiting fullscreen
         // when both inputs lose focus
@@ -3895,9 +4849,19 @@ function setupEventListeners() {
         });
     }
     
+    
     // Playlist volume toggle
     if (elements.playlistVolumeToggle) {
         elements.playlistVolumeToggle.addEventListener('click', togglePlaylistVolume);
+    }
+    
+    // Skip buttons
+    if (elements.playlistSkipBackward) {
+        elements.playlistSkipBackward.addEventListener('click', skipPlaylistBackward);
+    }
+    
+    if (elements.playlistSkipForward) {
+        elements.playlistSkipForward.addEventListener('click', skipPlaylistForward);
     }
     
     // Letterboxd fetch
@@ -3913,6 +4877,11 @@ function setupEventListeners() {
     // Letterboxd save selection
     if (elements.letterboxdSaveSelection) {
         elements.letterboxdSaveSelection.addEventListener('click', handleSaveLetterboxdSelection);
+    }
+    
+    // Letterboxd toggle all
+    if (elements.letterboxdToggleAll) {
+        elements.letterboxdToggleAll.addEventListener('click', handleToggleAllReviews);
     }
     
     // Listen for auth state changes
@@ -4012,6 +4981,32 @@ function setupZoomPrevention() {
 
 async function init() {
     console.log('Initializing app...');
+    
+    // Suppress noisy errors from SoundCloud widget (internal widget errors that don't affect functionality)
+    const originalError = console.error;
+    console.error = function(...args) {
+        const errorString = args.join(' ');
+        // Filter out SoundCloud widget internal errors
+        if (errorString.includes('widget-') && (errorString.includes('isPlaying') || errorString.includes('Cannot read properties'))) {
+            // Suppress this specific SoundCloud widget error
+            return;
+        }
+        // Pass through all other errors
+        originalError.apply(console, args);
+    };
+    
+    // Also suppress uncaught exceptions from SoundCloud widget
+    window.addEventListener('error', (event) => {
+        const errorMessage = event.message || '';
+        const errorSource = event.filename || '';
+        // Suppress SoundCloud widget errors
+        if ((errorSource.includes('widget-') || errorSource.includes('soundcloud')) && 
+            (errorMessage.includes('isPlaying') || errorMessage.includes('Cannot read properties'))) {
+            event.preventDefault();
+            return false;
+        }
+    }, true);
+    
     updateAppStatus('initializing app...', 'info');
     
     // Ensure Supabase is loaded before proceeding

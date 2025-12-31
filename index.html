@@ -13,6 +13,9 @@
     <meta name="apple-mobile-web-app-title" content="nez">
     <meta name="description" content="A quiet place to post">
     
+    <!-- Permissions Policy for SoundCloud encrypted media -->
+    <meta http-equiv="Permissions-Policy" content="encrypted-media=(self 'https://w.soundcloud.com')">
+    
     <!-- Manifest -->
     <link rel="manifest" href="manifest.json">
     
@@ -40,9 +43,20 @@
             <div class="header-right">
                 <!-- Music Playlist (in header) -->
                 <div id="playlist-section" class="playlist-section-header hidden">
-                    <button id="playlist-volume-toggle" class="playlist-volume-toggle" aria-label="toggle volume">
-                        <span id="playlist-volume-icon">🔇</span>
-                    </button>
+                    <div class="playlist-sticker-wrapper">
+                        <button id="playlist-volume-toggle" class="playlist-volume-toggle" aria-label="toggle volume">
+                            <span id="playlist-volume-icon">🔇</span>
+                        </button>
+                        <button id="playlist-skip-backward" class="playlist-skip-button hidden" aria-label="skip backward">
+                            <span>⏮️</span>
+                        </button>
+                        <button id="playlist-skip-forward" class="playlist-skip-button hidden" aria-label="skip forward">
+                            <span>⏭️</span>
+                        </button>
+                        <div class="playlist-sticker">
+                            <span class="playlist-sticker-text">click here for nez's tunes!</span>
+                        </div>
+                    </div>
                     <!-- Hidden player container -->
                     <div id="playlist-container" class="playlist-container hidden-player">
                         <!-- Music embed will be inserted here (hidden) -->
@@ -135,7 +149,7 @@
                     <input 
                         type="text" 
                         id="playlist-url-input" 
-                        placeholder="youtube or apple music playlist url"
+                        placeholder="youtube, apple music, spotify, or soundcloud playlist url"
                         class="playlist-url-input"
                     >
                     <button id="playlist-save" class="playlist-save-button">save playlist</button>
@@ -154,7 +168,10 @@
                     >
                     <button id="letterboxd-fetch" class="letterboxd-fetch-button">fetch reviews</button>
                     <div id="letterboxd-reviews-container" class="letterboxd-reviews-container hidden">
-                        <h3 class="letterboxd-reviews-title">select reviews to display</h3>
+                        <div class="letterboxd-reviews-header">
+                            <h3 class="letterboxd-reviews-title">select reviews to display</h3>
+                            <button id="letterboxd-toggle-all" class="letterboxd-toggle-all-button">select all</button>
+                        </div>
                         <div id="letterboxd-reviews-list" class="letterboxd-reviews-list">
                             <!-- Reviews will be rendered here -->
                         </div>
