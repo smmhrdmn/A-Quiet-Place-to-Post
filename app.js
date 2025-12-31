@@ -4103,10 +4103,14 @@ function setupEventListeners() {
         elements.postContent.addEventListener('click', (e) => {
             // Set flag to prevent blur from exiting
             isClickingToEnter = true;
-            // Let the natural click behavior focus the textarea
-            // The focus event will handle entering fullscreen
+            // Enter fullscreen immediately if not already in fullscreen
+            if (!elements.writePanel.classList.contains('write-panel-fullscreen')) {
+                enterFullscreen();
+            }
+            // Focus the textarea immediately
+            elements.postContent.focus();
+            // Also ensure focus happened after a tiny delay
             setTimeout(() => {
-                // Ensure focus happened
                 if (document.activeElement !== elements.postContent) {
                     elements.postContent.focus();
                 }
@@ -4143,7 +4147,11 @@ function setupEventListeners() {
                 (target.closest('.write-panel') === elements.writePanel && !target.closest('button'))) {
                 // Set flag to prevent blur from exiting fullscreen
                 isClickingToEnter = true;
-                // Focus the textarea immediately - this should trigger focus event
+                // Enter fullscreen immediately if not already in fullscreen
+                if (!elements.writePanel.classList.contains('write-panel-fullscreen')) {
+                    enterFullscreen();
+                }
+                // Focus the textarea immediately
                 elements.postContent.focus();
                 // Also ensure focus happens after a tiny delay
                 setTimeout(() => {
@@ -4733,10 +4741,14 @@ function setupEventListeners() {
         elements.suggestContent.addEventListener('click', (e) => {
             // Set flag to prevent blur from exiting
             isClickingToEnter = true;
-            // Let the natural click behavior focus the textarea
-            // The focus event will handle entering fullscreen
+            // Enter fullscreen immediately if not already in fullscreen
+            if (!elements.suggestPanel.classList.contains('suggest-panel-fullscreen')) {
+                enterFullscreen();
+            }
+            // Focus the textarea immediately
+            elements.suggestContent.focus();
+            // Also ensure focus happened after a tiny delay
             setTimeout(() => {
-                // Ensure focus happened
                 if (document.activeElement !== elements.suggestContent) {
                     elements.suggestContent.focus();
                 }
@@ -4771,8 +4783,11 @@ function setupEventListeners() {
                 (target.closest('.suggest-panel') === elements.suggestPanel && !target.closest('button'))) {
                 // Set flag to prevent blur from exiting fullscreen
                 isClickingToEnter = true;
-                // Don't stop propagation - let the natural click behavior happen
-                // Focus the textarea immediately - this should trigger focus event
+                // Enter fullscreen immediately if not already in fullscreen
+                if (!elements.suggestPanel.classList.contains('suggest-panel-fullscreen')) {
+                    enterFullscreen();
+                }
+                // Focus the textarea immediately
                 elements.suggestContent.focus();
                 // Also ensure focus happens after a tiny delay
                 setTimeout(() => {
