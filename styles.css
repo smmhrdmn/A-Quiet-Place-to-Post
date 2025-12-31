@@ -570,7 +570,8 @@ nav {
     caret-color: white;
 }
 
-.write-panel-sticky textarea {
+.write-panel-sticky textarea,
+.write-panel.write-panel-sticky textarea {
     min-height: 2rem;
     max-height: 3.5rem;
     margin-bottom: 0.4rem;
@@ -578,8 +579,8 @@ nav {
     line-height: 1.6;
     padding: 0.2rem 0;
     overflow-y: auto;
-    color: white;
-    caret-color: white;
+    color: white !important;
+    caret-color: white !important;
 }
 
 .write-panel-fullscreen textarea {
@@ -667,10 +668,11 @@ nav {
     margin-top: 0;
 }
 
-.write-panel-sticky .write-actions button {
+.write-panel-sticky .write-actions button,
+.write-panel.write-panel-sticky .write-actions button {
     font-size: 0.7rem;
     padding: 0.15rem 0;
-    color: white;
+    color: white !important;
 }
 
 .write-panel-fullscreen .write-actions {
@@ -721,13 +723,17 @@ nav {
 }
 
 .write-panel-sticky #post-submit,
-.write-panel-fullscreen #post-submit {
+.write-panel.write-panel-sticky #post-submit,
+.write-panel-fullscreen #post-submit,
+.write-panel.write-panel-fullscreen #post-submit {
     color: white !important;
     border-bottom-color: white !important;
 }
 
 .write-panel-sticky #post-submit:hover,
-.write-panel-fullscreen #post-submit:hover {
+.write-panel.write-panel-sticky #post-submit:hover,
+.write-panel-fullscreen #post-submit:hover,
+.write-panel.write-panel-fullscreen #post-submit:hover {
     color: rgba(255, 255, 255, 0.8) !important;
     border-bottom-color: rgba(255, 255, 255, 0.8) !important;
 }
@@ -861,7 +867,8 @@ nav {
     caret-color: white;
 }
 
-.suggest-panel-sticky textarea {
+.suggest-panel-sticky textarea,
+.suggest-panel.suggest-panel-sticky textarea {
     min-height: 1.5rem;
     max-height: 3rem;
     margin-bottom: 0.4rem;
@@ -869,8 +876,8 @@ nav {
     line-height: 1.6;
     padding: 0.2rem 0;
     overflow-y: auto;
-    color: white;
-    caret-color: white;
+    color: white !important;
+    caret-color: white !important;
 }
 
 .suggest-panel-fullscreen textarea {
@@ -910,10 +917,11 @@ nav {
     margin-top: 0;
 }
 
-.suggest-panel-sticky .suggest-actions button {
+.suggest-panel-sticky .suggest-actions button,
+.suggest-panel.suggest-panel-sticky .suggest-actions button {
     font-size: 0.7rem;
     padding: 0.15rem 0;
-    color: white;
+    color: white !important;
 }
 
 .suggest-panel-fullscreen .suggest-actions {
@@ -964,13 +972,17 @@ nav {
 }
 
 .suggest-panel-sticky #suggest-submit,
-.suggest-panel-fullscreen #suggest-submit {
+.suggest-panel.suggest-panel-sticky #suggest-submit,
+.suggest-panel-fullscreen #suggest-submit,
+.suggest-panel.suggest-panel-fullscreen #suggest-submit {
     color: white !important;
     border-bottom-color: white !important;
 }
 
 .suggest-panel-sticky #suggest-submit:hover,
-.suggest-panel-fullscreen #suggest-submit:hover {
+.suggest-panel.suggest-panel-sticky #suggest-submit:hover,
+.suggest-panel-fullscreen #suggest-submit:hover,
+.suggest-panel.suggest-panel-fullscreen #suggest-submit:hover {
     color: rgba(255, 255, 255, 0.8) !important;
     border-bottom-color: rgba(255, 255, 255, 0.8) !important;
 }
@@ -989,12 +1001,16 @@ nav {
 }
 
 .suggest-panel-sticky .random-word-button,
-.suggest-panel-fullscreen .random-word-button {
+.suggest-panel.suggest-panel-sticky .random-word-button,
+.suggest-panel-fullscreen .random-word-button,
+.suggest-panel.suggest-panel-fullscreen .random-word-button {
     color: white !important;
 }
 
 .suggest-panel-sticky .random-word-button:hover,
-.suggest-panel-fullscreen .random-word-button:hover {
+.suggest-panel.suggest-panel-sticky .random-word-button:hover,
+.suggest-panel-fullscreen .random-word-button:hover,
+.suggest-panel.suggest-panel-fullscreen .random-word-button:hover {
     color: white !important;
     opacity: 1 !important;
 }
@@ -1231,14 +1247,15 @@ nav {
     color: rgba(255, 255, 255, 0.6) !important;
 }
 
-.write-panel-sticky .post-tag-input {
+.write-panel-sticky .post-tag-input,
+.write-panel.write-panel-sticky .post-tag-input {
     font-size: 0.8rem;
     min-width: 0;
     max-width: 10rem;
     padding: 0.15rem 0;
     width: 2.2rem;
-    color: white;
-    caret-color: white;
+    color: white !important;
+    caret-color: white !important;
 }
 
 .write-panel-fullscreen .post-tag-input {

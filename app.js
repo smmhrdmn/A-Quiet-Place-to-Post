@@ -4002,7 +4002,7 @@ function setupEventListeners() {
                         elements.writePanel.classList.add('write-panel-sticky');
             
             // Ensure the panel background is correct for sticky mode
-            elements.writePanel.style.setProperty('background', 'rgba(255, 245, 250, 0.95)', 'important');
+            elements.writePanel.style.setProperty('background', '#ff69b4', 'important');
             
             // Force multiple reflows to ensure all CSS updates
             void document.body.offsetHeight;
@@ -4598,7 +4598,7 @@ function setupEventListeners() {
             elements.suggestPanel.classList.add('suggest-panel-sticky');
             
             // Ensure the panel background is correct for sticky mode
-            elements.suggestPanel.style.setProperty('background', 'rgba(255, 245, 250, 0.95)', 'important');
+            elements.suggestPanel.style.setProperty('background', '#ff69b4', 'important');
             
             // Force multiple reflows to ensure all CSS updates
             void document.body.offsetHeight;
