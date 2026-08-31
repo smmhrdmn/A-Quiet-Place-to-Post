@@ -13,10 +13,11 @@ const CONFIG = {
     SUPABASE_URL: 'https://hyxobyxeeayuorzldyuy.supabase.co',
     // Your Supabase anon/public key (safe to expose)
     SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5eG9ieXhlZWF5dW9yemxkeXV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ4NzYyNjYsImV4cCI6MjA4MDQ1MjI2Nn0.LjY5IHeROzUuFT9SXMwCOabAOk6ccSq7k9Z8xtGDltA',
-    // Show the public "suggest something..." form to logged-out visitors.
+    // Show the "suggest something..." form to logged-out (external) visitors.
+    // Signed-in posting via the write panel is unaffected either way.
     // This only controls the UI; the suggestions insert policy must be
     // revoked in Supabase to actually stop submissions via the API.
-    SUGGESTIONS_ENABLED: false
+    PUBLIC_SUGGESTIONS_ENABLED: false
 };
 
 // ============================================
@@ -2688,7 +2689,7 @@ function updateUIForAuth() {
         elements.tabFeed.classList.add('hidden');
         elements.tabSuggestions.classList.add('hidden');
         elements.tabAdmin.classList.add('hidden');
-        elements.suggestPanel.classList.toggle('hidden', !CONFIG.SUGGESTIONS_ENABLED);
+        elements.suggestPanel.classList.toggle('hidden', !CONFIG.PUBLIC_SUGGESTIONS_ENABLED);
         
         // Show feed directly when logged out
         if (feedElement) {
@@ -3186,7 +3187,7 @@ function getRandomWord() {
 // ============================================
 
 async function handleCreateSuggestion() {
-    if (!CONFIG.SUGGESTIONS_ENABLED) return;
+    if (!isAuthenticated && !CONFIG.PUBLIC_SUGGESTIONS_ENABLED) return;
     
     const content = elements.suggestContent.value.trim();
     
